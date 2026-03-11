@@ -1,0 +1,136 @@
+---
+title: "Delete Union"
+api: "DELETE /api/unions/:id"
+---
+
+Soft delete a union. The union will be marked as deleted but retained in the database for audit purposes.
+
+## Authentication
+
+Required. Include a valid JWT token in the Authorization header.
+
+```bash
+Authorization: Bearer <token>
+```
+
+## Authorization
+
+This endpoint requires **ADMIN** role. Only administrators can delete unions.
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier (CUID) of the union to delete.
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful.
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success message confirming the union was deleted.
+</ResponseField>
+
+## Example Request
+
+```bash
+curl --request DELETE \
+  --url https://api.example.com/api/unions/clx9876543210 \
+  --header 'Authorization: Bearer <token>'
+```
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "message": "Union deleted successfully"
+}
+```
+
+## Error Responses
+
+<ResponseField name="401 Unauthorized">
+  Missing or invalid authentication token.
+  
+  ```json
+  {
+    "success": false,
+    "message": "Unauthorized"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="403 Forbidden">
+  User does not have required role (ADMIN).
+  
+  ```json
+  {
+    "success": false,
+    "message": "Access denied. Admin privileges required."
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="404 Not Found">
+  Union with the specified ID does not exist.
+  
+  ```json
+  {
+    "success": false,
+    "message": "Union not found"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="400 Bad Request">
+  Error during deletion process.
+  
+  ```json
+  {
+    "success": false,
+    "message": "Failed to delete union"
+  }
+  ```
+</ResponseField>
+
+## Important Notes
+
+### Soft Delete Behavior
+
+This endpoint performs a **soft delete**, meaning:
+- The union record is not physically removed from the database
+- The `deletedAt` field is set to the current timestamp
+- The union will no longer appear in normal queries
+- Related records (union members, loans) are preserved for historical data
+- Audit logs maintain complete history
+
+### Cascade Considerations
+
+Before deleting a union, consider:
+- **Union Members**: Members associated with this union should be reassigned to another union first
+- **Loans**: Active loans associated with this union may prevent deletion
+- **Audit Trail**: All historical data and audit logs remain intact
+
+### Best Practices
+
+1. **Reassign Members First**: Use the union member reassignment endpoint to move all members to another union
+2. **Check Active Loans**: Ensure no active loans are associated with the union
+3. **Document Reason**: Consider adding a note in audit logs explaining the deletion reason
+4. **Use Reassignment Instead**: For organizational changes, consider reassigning the union to a different credit officer instead of deleting
+
+## Audit Log
+
+This operation creates an audit log entry with action `UNION_DELETED` for tracking purposes. The audit log includes:
+- Actor user ID (admin who performed the deletion)
+- Timestamp of deletion
+- Union details before deletion
+- IP address and user agent information
+
+## Related Endpoints
+
+- To reassign union members before deletion: [POST /api/union-members/:memberId/reassign](/api/union-members/reassign)
+- To view audit history: Check AuditLog records for this union ID
+- To assign union to different officer: [POST /api/unions/:unionId/assign](/api/unions/assign)

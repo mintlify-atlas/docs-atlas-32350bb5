@@ -1,0 +1,316 @@
+---
+title: "Dashboard - Command Center"
+description: "Your real-time operations hub with metrics, analytics, and quick actions"
+icon: "chart-line"
+---
+
+## Overview
+
+The **Dashboard** (also called the Command Center) is your home base for monitoring and managing your microfinance operations. It provides a comprehensive view of key metrics, recent activities, and quick access to common tasks.
+
+<Info>
+  The dashboard automatically refreshes data and adapts its view based on your role: Admin, Supervisor, or Credit Officer.
+</Info>
+
+## Dashboard Layout
+
+The dashboard is organized into several key sections:
+
+### Header Section
+Personalized greeting with:
+- **Time-based welcome message** (Good Morning/Afternoon/Evening)
+- **Current date** with full calendar display
+- **Quick Action Buttons**:
+  - Refresh dashboard data
+  - Add new member
+  - Create new loan
+
+### Navigation Tabs
+Switch between different dashboard views:
+- **Overview** - Complete operational snapshot
+- **Loans** - Loan-focused metrics
+- **Members** - Member management data
+
+## Key Metrics Cards
+
+The dashboard displays real-time statistics across multiple cards:
+
+<CardGroup cols={2}>
+  <Card title="Union Members" icon="users">
+    Total registered members with month-over-month growth percentage
+  </Card>
+  <Card title="Active Loans" icon="credit-card">
+    Currently active loan count with growth trend
+  </Card>
+  <Card title="Pending Approvals" icon="clock">
+    Loans awaiting supervisor approval
+  </Card>
+  <Card title="Overdue Loans" icon="alert-triangle">
+    Count of loans past their due date
+  </Card>
+</CardGroup>
+
+### Financial Metrics
+
+<CardGroup cols={2}>
+  <Card title="Total Revenue (This Month)" icon="banknote">
+    Sum of all loan principal amounts disbursed this month
+    
+    Displays growth percentage compared to last month
+  </Card>
+  <Card title="Repayments (This Month)" icon="wallet">
+    Total payments collected in the current month
+    
+    Shows collection trend and growth rate
+  </Card>
+</CardGroup>
+
+### Performance Indicators
+
+<CardGroup cols={2}>
+  <Card title="Today's Collections" icon="activity">
+    Real-time payments received today across all unions
+  </Card>
+  <Card title="Approval Rate" icon="check-circle">
+    Percentage of loans approved vs. rejected
+    
+    Calculated as: `(Approved Loans / Total Processed) × 100`
+  </Card>
+  <Card title="Collection Rate" icon="trending-up">
+    Repayment performance metric
+    
+    Calculated as: `(Total Repaid / Total Revenue) × 100`
+  </Card>
+  <Card title="Average Loan Amount" icon="target">
+    Mean principal amount per active loan
+  </Card>
+</CardGroup>
+
+## Interactive Features
+
+### Union Collections Chart
+
+<Note>
+  Available to all staff roles. Admins and Supervisors can filter by specific officers or unions.
+</Note>
+
+The Union Collections chart displays:
+- Daily collection trends
+- Union-specific performance
+- Filterable date ranges
+- Visual representation of payment patterns
+
+### Recent Loans Table
+
+Displays the 5 most recently created loans with:
+- **Loan number** and member name
+- **Principal amount** formatted in Naira (₦)
+- **Status badge** with color coding:
+  - 🟢 Active - Loan is being repaid
+  - 🟠 Pending Approval - Awaiting supervisor
+  - 🟡 Approved - Ready for disbursement
+  - 🔵 Completed - Fully repaid
+  - 🔴 Defaulted - Payment failure
+  - ⚫ Draft - Not yet submitted
+
+<Tip>
+  Click any loan to view full details and repayment schedule
+</Tip>
+
+### Recent Members Section
+
+Shows the 5 newest registered union members:
+- Member initials in avatar
+- Full name and contact info
+- Registration date
+- Member code (if assigned)
+
+### Overdue Payments Alert
+
+<Warning>
+  The overdue section appears prominently when payments are past due
+</Warning>
+
+Displays:
+- Borrower name and loan number
+- Amount due in Naira
+- Days overdue
+- Quick action to view schedule
+
+### Top Performing Unions (Admin Only)
+
+Ranked list showing:
+- Union name and position
+- Number of active loans
+- Total collections (revenue)
+- Visual ranking badges (🥇 Gold, 🥈 Silver, 🥉 Bronze)
+
+## Role-Based Views
+
+### Administrator View
+Sees **all data** across the entire system:
+- All unions and credit officers
+- Complete loan portfolio
+- System-wide metrics
+- Top performing unions
+
+### Supervisor View
+Sees data for **their assigned credit officers**:
+- Officers under their supervision
+- Unions managed by their team
+- Loans in their territory
+- Approval queue
+
+### Credit Officer View
+Sees **only their assigned data**:
+- Their own unions
+- Members in their unions
+- Loans they've created or manage
+- Their repayment collections
+
+## Quick Actions Menu
+
+Access common tasks directly from the dashboard:
+
+<Steps>
+  <Step title="Add Member">
+    Navigate to customer creation form
+  </Step>
+  <Step title="New Loan">
+    Open loan application wizard
+  </Step>
+  <Step title="Record Payment">
+    Go to repayment entry page
+  </Step>
+  <Step title="View Reports">
+    Access supervisor analytics
+  </Step>
+</Steps>
+
+## Dashboard Statistics Calculation
+
+### Revenue Metrics
+```javascript
+// Monthly Revenue (This Month)
+monthlyRevenue = loans
+  .filter(loan => loan.createdAt >= startOfMonth)
+  .reduce((sum, loan) => sum + loan.principalAmount, 0)
+
+// Growth Calculation
+revenueGrowth = ((currentMonth - lastMonth) / lastMonth) × 100
+```
+
+### Collection Rate
+```javascript
+collectionRate = (totalRepayments / totalRevenue) × 100
+```
+
+### Approval Rate
+```javascript
+approvalRate = (approvedLoans / totalProcessedLoans) × 100
+// where processedLoans = APPROVED + REJECTED statuses
+```
+
+## Interactive Tour
+
+<Info>
+  New users automatically see an interactive Command Center tour on first login
+</Info>
+
+The tour highlights:
+1. **Command Center overview** - Understanding your metrics
+2. **Sidebar navigation** - Accessing different modules
+3. **Quick actions** - Common daily tasks
+
+### Starting the Tour Manually
+
+<Steps>
+  <Step title="Desktop">
+    Click your profile icon → Select "Take Tour"
+  </Step>
+  <Step title="Mobile">
+    Tap profile menu → Choose "Interactive Tour"
+  </Step>
+</Steps>
+
+## Refresh and Real-Time Updates
+
+The dashboard provides multiple ways to refresh data:
+
+<Accordion title="Auto-Refresh Behavior">
+  - Data automatically loads on login
+  - Refreshes when navigating back to dashboard
+  - Updates after completing major actions
+</Accordion>
+
+<Accordion title="Manual Refresh">
+  Click the **Refresh** button in the header to reload all metrics and recent activity
+</Accordion>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Start Your Day" icon="sunrise">
+    1. Check pending approvals
+    2. Review overdue payments
+    3. Note today's collection targets
+  </Card>
+  <Card title="Monitor Performance" icon="chart-bar">
+    1. Track approval rates
+    2. Monitor collection trends
+    3. Identify at-risk loans
+  </Card>
+  <Card title="Take Quick Actions" icon="zap">
+    Use dashboard shortcuts for frequent tasks instead of navigating through menus
+  </Card>
+  <Card title="Review Growth" icon="trending-up">
+    Compare month-over-month metrics to identify trends and opportunities
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Dashboard not loading">
+    1. Check your internet connection
+    2. Click the Refresh button
+    3. Clear browser cache (F5 or Ctrl+R)
+    4. Log out and back in
+  </Accordion>
+  
+  <Accordion title="Numbers seem incorrect">
+    1. Verify your role permissions
+    2. Check active filters
+    3. Confirm date range settings
+    4. Contact your administrator
+  </Accordion>
+  
+  <Accordion title="Missing data sections">
+    Some sections are role-specific. The "Top Unions" section is only visible to Administrators.
+  </Accordion>
+</AccordionGroup>
+
+## Navigation Tips
+
+<Tip>
+  Use keyboard shortcuts for faster navigation:
+  - `Ctrl + F` - Search on page
+  - `F5` - Refresh dashboard
+  - `Esc` - Close modal windows
+</Tip>
+
+## Summary
+
+The Dashboard provides:
+- ✅ Real-time operational metrics
+- ✅ Role-based data filtering
+- ✅ Quick access to common tasks
+- ✅ Visual performance indicators
+- ✅ Alerts for critical items
+- ✅ Recent activity tracking
+
+<Card title="Next Steps" icon="arrow-right">
+  - Explore [Unions](/features/unions) to manage your groups
+  - Learn about [Loan Management](/features/loans) workflows
+  - Review [Reporting](/features/reporting) for analytics
+</Card>

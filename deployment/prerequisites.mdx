@@ -1,0 +1,184 @@
+---
+title: Prerequisites
+description: System requirements and dependencies needed before deploying Millennium Potters
+---
+
+Before deploying the Millennium Potters loan management system, ensure you have the following software, system requirements, and third-party accounts configured.
+
+## Software Requirements
+
+<Steps>
+  <Step title="Node.js 18 or higher">
+    The application requires Node.js 18.0.0 or later for both frontend and backend.
+    
+    ```bash
+    # Verify your Node.js version
+    node --version
+    # Should output v18.0.0 or higher
+    ```
+    
+    <Note>
+      npm 9.0.0 or higher is also required. This is typically bundled with Node.js 18+.
+    </Note>
+  </Step>
+
+  <Step title="PostgreSQL 18">
+    PostgreSQL 18 is required for local development and testing.
+    
+    ```bash
+    # Verify PostgreSQL version
+    psql --version
+    # Should output psql (PostgreSQL) 18.x
+    ```
+    
+    <Warning>
+      Production uses CockroachDB, but PostgreSQL 18 is essential for local development to match the production database compatibility.
+    </Warning>
+  </Step>
+
+  <Step title="Git">
+    Version control is required for deployment workflows.
+    
+    ```bash
+    git --version
+    ```
+  </Step>
+</Steps>
+
+## System Requirements
+
+### Development Environment
+
+- **RAM**: Minimum 4GB, recommended 8GB+
+- **Storage**: 2GB free space for dependencies and local database
+- **OS**: Linux, macOS, or Windows with WSL2
+
+### Production Environment
+
+- **Server**: Node.js hosting platform (Vercel, Render, Plesk)
+- **Database**: CockroachDB Serverless cluster
+- **Network**: HTTPS support required for OAuth callbacks
+- **Concurrent Users**: Optimized for 50-100 users
+  - Connection pool: 20-30 connections recommended
+
+## Third-Party Accounts
+
+### Required Services
+
+<AccordionGroup>
+  <Accordion title="Supabase" icon="database">
+    **Purpose**: Authentication (OAuth + JWT)
+    
+    Setup checklist:
+    - [ ] Create a Supabase project
+    - [ ] Enable email/password authentication
+    - [ ] Configure OAuth providers (optional)
+    - [ ] Note your Project URL and Anon Key
+    
+    Required environment variables:
+    - `NEXT_PUBLIC_SUPABASE_URL`
+    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  </Accordion>
+
+  <Accordion title="Cloudinary" icon="cloud">
+    **Purpose**: Document storage and backup exports
+    
+    Setup checklist:
+    - [ ] Create a Cloudinary account
+    - [ ] Create a cloud name
+    - [ ] Generate API credentials
+    - [ ] Configure upload presets (optional)
+    
+    Required environment variables:
+    - `CLOUDINARY_CLOUD_NAME`
+    - `CLOUDINARY_API_KEY`
+    - `CLOUDINARY_API_SECRET`
+  </Accordion>
+
+  <Accordion title="CockroachDB" icon="server">
+    **Purpose**: Production database with automatic backups
+    
+    Setup checklist:
+    - [ ] Create a CockroachDB Serverless cluster
+    - [ ] Create a database user
+    - [ ] Note your connection string
+    - [ ] Configure connection pooling (20-30 connections)
+    
+    Features included:
+    - Automatic hourly backups (30-day retention)
+    - Point-in-Time Recovery (PITR)
+    - Online schema migrations
+    
+    Required environment variables:
+    - `DATABASE_URL` (with connection pooling params)
+    - `DIRECT_URL` (for migrations)
+  </Accordion>
+</AccordionGroup>
+
+### Optional Services
+
+<Accordion title="Email Provider (SMTP)" icon="envelope">
+  **Purpose**: Password reset and notification emails
+  
+  Setup checklist:
+  - [ ] Configure SMTP server (Gmail, SendGrid, AWS SES, etc.)
+  - [ ] Enable "Less secure app access" or generate app password
+  - [ ] Test email delivery
+  
+  Required environment variables:
+  - `EMAIL_HOST`
+  - `EMAIL_PORT`
+  - `EMAIL_USER`
+  - `EMAIL_PASSWORD`
+  - `EMAIL_FROM`
+</Accordion>
+
+## Development Tools
+
+### Recommended
+
+- **Code Editor**: VS Code with Prisma extension
+- **API Testing**: Postman or Thunder Client
+- **Database GUI**: Prisma Studio (included) or pgAdmin
+- **Git Client**: GitHub Desktop or command line
+
+## Pre-Deployment Checklist
+
+Before proceeding to environment setup:
+
+- [ ] Node.js 18+ installed
+- [ ] PostgreSQL 18 running locally
+- [ ] Supabase project created with credentials
+- [ ] Cloudinary account with API keys
+- [ ] CockroachDB cluster created
+- [ ] SMTP credentials (if using email features)
+- [ ] Git repository access
+- [ ] Production hosting platform account (Vercel/Render/Plesk)
+
+<Note>
+  Once all prerequisites are met, proceed to [Environment Configuration](/deployment/environment) to set up your environment variables.
+</Note>
+
+## Connection Pooling Notes
+
+For CockroachDB production deployment:
+
+```bash
+# Add these parameters to your DATABASE_URL
+?connection_limit=20&pool_timeout=20
+```
+
+<Info>
+  The system is optimized for 50-100 concurrent users. Adjust `connection_limit` to 20-30 based on your expected load.
+</Info>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Environment Setup" icon="gear" href="/deployment/environment">
+    Configure environment variables for backend and frontend
+  </Card>
+  <Card title="Database Setup" icon="database" href="/deployment/database">
+    Initialize and migrate your database schema
+  </Card>
+</CardGroup>

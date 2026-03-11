@@ -1,0 +1,65 @@
+---
+title: "Authentication Overview"
+description: "Complete guide to authentication in the Millenium Potters API"
+---
+
+The Millenium Potters API uses a hybrid authentication system combining Supabase OAuth and JWT-based email/password authentication.
+
+## Authentication Methods
+
+The API supports two authentication methods:
+
+1. **Email/Password Authentication**: Traditional login using JWT tokens
+2. **Supabase OAuth**: Google OAuth login via Supabase
+
+## Token Management
+
+When you authenticate successfully, you receive:
+
+- **Access Token**: Used for API requests (expires in 7 days)
+- **Refresh Token**: Used to obtain new access tokens
+
+### Authentication Header Format
+
+All authenticated requests must include the access token in the `Authorization` header:
+
+```bash
+Authorization: Bearer <your_access_token>
+```
+
+## Session Management
+
+- Maximum of 3 active sessions per user
+- Sessions expire after 7 days
+- When the limit is reached, the oldest session is automatically revoked
+- Sessions are tracked by IP address and user agent
+
+## Authentication Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Login" icon="right-to-bracket" href="/api/auth/login">
+    Authenticate with email and password
+  </Card>
+  <Card title="Logout" icon="right-from-bracket" href="/api/auth/logout">
+    Revoke your current session
+  </Card>
+  <Card title="Password Reset" icon="key" href="/api/auth/password-reset">
+    Request a password reset link
+  </Card>
+</CardGroup>
+
+## Error Responses
+
+Authentication endpoints return standard error responses:
+
+- **401 Unauthorized**: Invalid credentials or expired token
+- **403 Forbidden**: Account is inactive or insufficient permissions
+- **503 Service Unavailable**: System is in maintenance mode (non-admin users only)
+
+## Security Features
+
+- Password requirements: minimum 8 characters, one uppercase, one lowercase, one number
+- Automatic session cleanup for expired sessions
+- Protected super admin accounts cannot be impersonated or have passwords changed
+- Failed login attempts are tracked
+- All sessions can be viewed and revoked individually

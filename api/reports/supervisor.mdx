@@ -1,0 +1,369 @@
+---
+title: Supervisor Reports
+description: Generate and manage supervisor report sessions
+---
+
+The Supervisor Reports endpoints allow supervisors and administrators to generate, retrieve, and manage detailed reports about team performance.
+
+## Generate Report
+
+<CodeGroup>
+```bash POST /api/supervisor-reports/generate
+curl -X POST https://api.millenniumpotters.com/api/supervisor-reports/generate \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "reportType": "MONTHLY",
+    "periodStart": "2024-01-01T00:00:00Z",
+    "periodEnd": "2024-01-31T23:59:59Z",
+    "title": "January 2024 Performance Report"
+  }'
+```
+</CodeGroup>
+
+Generate and save a report session with aggregated data for a specific period.
+
+### Request Body
+
+<ParamField body="reportType" type="string" required>
+  Type of report to generate. Must be one of:
+  - `DAILY`: Daily report
+  - `WEEKLY`: Weekly report
+  - `MONTHLY`: Monthly report
+  - `QUARTERLY`: Quarterly report
+  - `CUSTOM`: Custom date range report
+</ParamField>
+
+<ParamField body="periodStart" type="string" required>
+  Start date and time for the report period (ISO 8601 format).
+</ParamField>
+
+<ParamField body="periodEnd" type="string" required>
+  End date and time for the report period (ISO 8601 format).
+</ParamField>
+
+<ParamField body="title" type="string">
+  Optional custom title for the report. If not provided, a default title will be generated.
+</ParamField>
+
+<ParamField body="supervisorId" type="string">
+  **ADMIN only**: Supervisor ID to generate the report for. Regular supervisors cannot specify this field.
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="string">
+  Unique identifier for the report session.
+</ResponseField>
+
+<ResponseField name="supervisorId" type="string">
+  ID of the supervisor who owns this report.
+</ResponseField>
+
+<ResponseField name="supervisor" type="object">
+  Supervisor information.
+  <Expandable>
+    <ResponseField name="id" type="string">
+      Supervisor user ID.
+    </ResponseField>
+    <ResponseField name="firstName" type="string">
+      Supervisor's first name.
+    </ResponseField>
+    <ResponseField name="lastName" type="string">
+      Supervisor's last name.
+    </ResponseField>
+    <ResponseField name="email" type="string">
+      Supervisor's email address.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="reportType" type="string">
+  Type of report (DAILY, WEEKLY, MONTHLY, QUARTERLY, CUSTOM).
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Report title.
+</ResponseField>
+
+<ResponseField name="periodStart" type="string">
+  Report period start date.
+</ResponseField>
+
+<ResponseField name="periodEnd" type="string">
+  Report period end date.
+</ResponseField>
+
+<ResponseField name="totalOfficers" type="number">
+  Total number of credit officers under this supervisor.
+</ResponseField>
+
+<ResponseField name="totalUnions" type="number">
+  Total number of unions managed by the team.
+</ResponseField>
+
+<ResponseField name="totalMembers" type="number">
+  Total number of union members.
+</ResponseField>
+
+<ResponseField name="totalLoans" type="number">
+  Total number of loans in the period.
+</ResponseField>
+
+<ResponseField name="activeLoans" type="number">
+  Number of currently active loans.
+</ResponseField>
+
+<ResponseField name="completedLoans" type="number">
+  Number of completed loans.
+</ResponseField>
+
+<ResponseField name="defaultedLoans" type="number">
+  Number of defaulted or written-off loans.
+</ResponseField>
+
+<ResponseField name="totalDisbursed" type="number">
+  Total amount disbursed in the period.
+</ResponseField>
+
+<ResponseField name="totalRepaid" type="number">
+  Total amount repaid in the period.
+</ResponseField>
+
+<ResponseField name="totalOutstanding" type="number">
+  Total outstanding loan amount.
+</ResponseField>
+
+<ResponseField name="collectionRate" type="number">
+  Collection rate as a percentage (0-100).
+</ResponseField>
+
+<ResponseField name="reportData" type="object">
+  Complete dashboard data snapshot including officer performance, loan distribution, and monthly trends.
+</ResponseField>
+
+<ResponseField name="officerMetrics" type="array">
+  Array of officer performance metrics.
+</ResponseField>
+
+<ResponseField name="generatedAt" type="string">
+  Timestamp when the report was generated.
+</ResponseField>
+
+### Required Permissions
+
+- **SUPERVISOR**: Can generate reports for their own team
+- **ADMIN**: Can generate reports for any supervisor by providing `supervisorId`
+
+---
+
+## List Report Sessions
+
+<CodeGroup>
+```bash GET /api/supervisor-reports/sessions
+curl https://api.millenniumpotters.com/api/supervisor-reports/sessions?page=1&limit=10 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieve all saved report sessions for a supervisor with pagination.
+
+### Query Parameters
+
+<ParamField query="page" type="number" default="1">
+  Page number for pagination.
+</ParamField>
+
+<ParamField query="limit" type="number" default="10">
+  Number of reports per page.
+</ParamField>
+
+<ParamField query="supervisorId" type="string">
+  **ADMIN only**: Filter reports by supervisor ID.
+</ParamField>
+
+### Response
+
+<ResponseField name="reports" type="array">
+  Array of report session summaries.
+  <Expandable>
+    <ResponseField name="id" type="string">
+      Report session ID.
+    </ResponseField>
+    <ResponseField name="reportType" type="string">
+      Type of report.
+    </ResponseField>
+    <ResponseField name="title" type="string">
+      Report title.
+    </ResponseField>
+    <ResponseField name="periodStart" type="string">
+      Report period start date.
+    </ResponseField>
+    <ResponseField name="periodEnd" type="string">
+      Report period end date.
+    </ResponseField>
+    <ResponseField name="totalOfficers" type="number">
+      Total officers in the report.
+    </ResponseField>
+    <ResponseField name="totalUnions" type="number">
+      Total unions in the report.
+    </ResponseField>
+    <ResponseField name="totalMembers" type="number">
+      Total members in the report.
+    </ResponseField>
+    <ResponseField name="totalLoans" type="number">
+      Total loans in the report.
+    </ResponseField>
+    <ResponseField name="totalDisbursed" type="number">
+      Total amount disbursed.
+    </ResponseField>
+    <ResponseField name="totalRepaid" type="number">
+      Total amount repaid.
+    </ResponseField>
+    <ResponseField name="collectionRate" type="number">
+      Collection rate percentage.
+    </ResponseField>
+    <ResponseField name="generatedAt" type="string">
+      When the report was generated.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="pagination" type="object">
+  Pagination metadata.
+  <Expandable>
+    <ResponseField name="page" type="number">
+      Current page number.
+    </ResponseField>
+    <ResponseField name="limit" type="number">
+      Items per page.
+    </ResponseField>
+    <ResponseField name="total" type="number">
+      Total number of reports.
+    </ResponseField>
+    <ResponseField name="pages" type="number">
+      Total number of pages.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+## Get Report Session
+
+<CodeGroup>
+```bash GET /api/supervisor-reports/sessions/:id
+curl https://api.millenniumpotters.com/api/supervisor-reports/sessions/clx123abc \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieve a specific report session by ID with complete data.
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the report session.
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="supervisorId" type="string">
+  **ADMIN only**: Supervisor ID to verify ownership.
+</ParamField>
+
+### Response
+
+Returns the complete report session object (same structure as the Generate Report response).
+
+---
+
+## Delete Report Session
+
+<CodeGroup>
+```bash DELETE /api/supervisor-reports/sessions/:id
+curl -X DELETE https://api.millenniumpotters.com/api/supervisor-reports/sessions/clx123abc \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Delete a saved report session.
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the report session to delete.
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the deletion was successful.
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success message.
+</ResponseField>
+
+---
+
+## List Credit Officers
+
+<CodeGroup>
+```bash GET /api/supervisor-reports/officers
+curl https://api.millenniumpotters.com/api/supervisor-reports/officers \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Get all credit officers under a supervisor.
+
+### Query Parameters
+
+<ParamField query="supervisorId" type="string">
+  **ADMIN only**: Get officers for a specific supervisor.
+</ParamField>
+
+### Response
+
+Returns an array of credit officer objects.
+
+<ResponseField name="id" type="string">
+  Officer user ID.
+</ResponseField>
+
+<ResponseField name="firstName" type="string">
+  Officer's first name.
+</ResponseField>
+
+<ResponseField name="lastName" type="string">
+  Officer's last name.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Full name of the officer.
+</ResponseField>
+
+<ResponseField name="email" type="string">
+  Officer's email address.
+</ResponseField>
+
+<ResponseField name="isActive" type="boolean">
+  Whether the officer account is active.
+</ResponseField>
+
+<ResponseField name="lastLoginAt" type="string">
+  Timestamp of last login.
+</ResponseField>
+
+<ResponseField name="lastActivityAt" type="string">
+  Timestamp of last activity.
+</ResponseField>
+
+<ResponseField name="loginCount" type="number">
+  Total number of logins.
+</ResponseField>
+
+<ResponseField name="unionCount" type="number">
+  Number of unions managed by this officer.
+</ResponseField>

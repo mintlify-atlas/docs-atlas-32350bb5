@@ -1,0 +1,244 @@
+---
+title: Introduction
+description: Welcome to Millenium Potters - A comprehensive microfinance management platform for tracking unions, members, loans, and repayments
+---
+
+# Welcome to Millenium Potters
+
+Millenium Potters is a comprehensive loan management system designed specifically for microfinance institutions. It provides a complete solution for managing unions, members, loans, and repayments with real-time analytics and role-based access control.
+
+## Who Is This For?
+
+Millenium Potters is built for microfinance organizations that need to:
+
+- **Manage multiple unions and their members** across different locations
+- **Process and track loans** from application to completion
+- **Monitor repayments** with automated schedule tracking
+- **Generate reports** for supervisors and administrators
+- **Maintain secure, role-based access** for different staff levels
+
+<CardGroup cols={2}>
+  <Card title="Credit Officers" icon="user-tie">
+    Day-to-day loan operations, member management, and repayment recording
+  </Card>
+  <Card title="Supervisors" icon="users">
+    Loan approvals, officer management, and territory oversight
+  </Card>
+  <Card title="Administrators" icon="shield">
+    Full system access, user management, and configuration
+  </Card>
+  <Card title="Analysts" icon="chart-line">
+    Reports, dashboards, and performance metrics
+  </Card>
+</CardGroup>
+
+## Key Features
+
+### Dashboard & Command Center
+
+Real-time analytics dashboard providing instant visibility into your operations:
+- Total loans and active members
+- Pending approvals and overdue payments
+- Collection rates and portfolio health
+- Recent activity feed
+
+<Info>
+  The interactive Command Center Tour guides new users through the dashboard features using Shepherd.js.
+</Info>
+
+### Union Management
+
+Organize your operations by creating and managing unions:
+- Create unions with location and contact information
+- Assign credit officers to specific unions
+- Track union-level performance metrics
+- Maintain historical records of union assignments
+
+See: `~/workspace/source/backend/prisma/schema.prisma:61-83`
+
+### Member Management
+
+Complete member lifecycle management:
+- Register members with full profile information
+- Upload and verify identity documents with Cloudinary storage
+- Track member verification status
+- Maintain member loan history
+- Reassign members between unions with audit trail
+
+### Loan Processing
+
+Full loan lifecycle from application to completion:
+
+<Steps>
+  <Step title="Draft Creation">
+    Credit officers create loan applications with borrower details, amount, terms, and purpose.
+  </Step>
+  <Step title="Approval Workflow">
+    Supervisors review and approve or reject loan applications with notes.
+  </Step>
+  <Step title="Disbursement">
+    Record when funds are disbursed with payment method and reference.
+  </Step>
+  <Step title="Repayment Tracking">
+    Monitor repayments with automated schedule management and overdue tracking.
+  </Step>
+  <Step title="Completion">
+    Loans automatically close when fully repaid.
+  </Step>
+</Steps>
+
+**Loan Status Flow:**
+```
+DRAFT → PENDING_APPROVAL → APPROVED → ACTIVE → COMPLETED
+                     ↓
+                 REJECTED
+```
+
+### Repayment Tracking
+
+Powerful repayment management features:
+- Record payments with multiple payment methods (Cash, Transfer, POS, Mobile, USSD)
+- Automatic allocation to interest and principal
+- Handle partial payments and overpayments
+- Track overdue schedules with real-time status updates
+- Generate repayment schedules for daily, weekly, or monthly payments
+
+See: `~/workspace/source/backend/prisma/schema.prisma:310-350`
+
+### Role-Based Access Control
+
+Three-tier permission system:
+
+<AccordionGroup>
+  <Accordion title="Admin" icon="crown">
+    Full system access including:
+    - User management and role assignment
+    - System configuration and settings
+    - Access to all unions and loans
+    - Ability to delete records
+    - Maintenance mode control
+  </Accordion>
+  
+  <Accordion title="Supervisor" icon="user-shield">
+    Management and oversight:
+    - Manage credit officers in their territory
+    - Approve or reject loan applications
+    - Generate supervisor reports
+    - View all loans in assigned areas
+    - Cannot modify system settings
+  </Accordion>
+  
+  <Accordion title="Credit Officer" icon="user">
+    Day-to-day operations:
+    - Manage assigned unions and members
+    - Create loan applications
+    - Record repayments
+    - View own portfolio only
+    - Cannot approve loans
+  </Accordion>
+</AccordionGroup>
+
+See: `~/workspace/source/backend/prisma/schema.prisma:19-23`
+
+### Reports & Analytics
+
+Comprehensive reporting system:
+- **Portfolio Summary**: Total loans, repayments, outstanding balance
+- **Collection Reports**: Payment collection rates and arrears
+- **Officer Performance**: Loans processed and collection metrics per officer
+- **Supervisor Reports**: Territory-wide analytics with customizable date ranges
+- **Export Options**: CSV and Excel formats for further analysis
+
+### Security & Audit
+
+Enterprise-grade security features:
+- **Supabase Authentication**: OAuth and JWT-based authentication
+- **Session Management**: Track active sessions with JWT ID tracking
+- **Audit Logging**: Complete audit trail for all critical actions
+- **Login History**: Monitor user login attempts and activity
+- **Rate Limiting**: Protection against brute force attacks
+- **Helmet.js**: Security headers and XSS protection
+
+See: `~/workspace/source/backend/package.json:42-43`
+
+### Automated Backups
+
+Reliable data protection:
+- **CockroachDB Managed Backups**: Automatic hourly backups with 30-day retention
+- **Point-in-Time Recovery (PITR)**: Restore to any point in time
+- **Cloudinary Exports**: Additional backup storage in the cloud
+- **Scheduled Backups**: Configurable backup frequency and retention
+- **Manual Backups**: On-demand backup creation
+
+See: `~/workspace/source/backend/prisma/schema.prisma:641-673`
+
+## User Experience
+
+### Interactive Onboarding
+
+New users are welcomed with an interactive tour:
+- **Command Center Tour**: Step-by-step introduction to dashboard features
+- **Context-Sensitive Help**: Tooltips and guidance throughout the interface
+- **Mobile-Friendly**: Responsive design with mobile-specific tour steps
+
+### Modern UI Components
+
+Built with cutting-edge UI libraries:
+- **Aceternity UI**: Beautiful, animated components
+- **Radix UI**: Accessible, unstyled component primitives
+- **Tailwind CSS**: Utility-first styling
+- **Framer Motion**: Smooth animations and transitions
+- **Recharts**: Interactive data visualizations
+
+See: `~/workspace/source/frontend/package.json:11-66`
+
+### Document Management
+
+Integrated document handling:
+- Upload member and loan documents
+- Store files securely with Cloudinary
+- Track document verification status
+- Support for multiple document types
+- Set expiry dates and issuing authorities
+
+## What You'll Learn
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get Millenium Potters running locally in under 10 minutes
+  </Card>
+  <Card title="Architecture" icon="building" href="/architecture">
+    Understand the system architecture and technology stack
+  </Card>
+  <Card title="User Guide" icon="book" href="/guides/user-management">
+    Complete guide for end users on managing loans and members
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/auth/overview">
+    Explore the REST API endpoints and authentication
+  </Card>
+</CardGroup>
+
+## System Requirements
+
+<Note>
+  **Prerequisites:**
+  - Node.js 18 or higher
+  - PostgreSQL 18 (local development) or CockroachDB (production)
+  - Modern web browser (Chrome, Firefox, Safari, or Edge)
+</Note>
+
+## Getting Help
+
+If you need assistance:
+- Check the [User Guide](/essentials/user-guide) for common workflows
+- Review the [API Reference](/api-reference) for integration details
+- Contact your system administrator for access issues
+- Report bugs or request features through your organization's support channel
+
+---
+
+<CardGroup cols={1}>
+  <Card title="Ready to Get Started?" icon="play" href="/quickstart">
+    Follow our quickstart guide to set up your local development environment
+  </Card>
+</CardGroup>

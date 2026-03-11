@@ -1,0 +1,310 @@
+---
+title: 'User Management Guide'
+description: 'Complete guide to creating, managing, and organizing users in the Millenium Potters platform'
+---
+
+## Overview
+
+By the end of this guide, you will understand how to create new users, assign roles and supervisors, manage user profiles, and deactivate users when needed. The platform supports three user roles: Admin, Supervisor, and Credit Officer, each with specific permissions and responsibilities.
+
+## Understanding User Roles
+
+Before creating users, it's important to understand the three user roles:
+
+| Role | Permissions | Use Case |
+|------|-------------|----------|
+| **ADMIN** | Full system access, can manage all users, configure settings, delete records | System administrators |
+| **SUPERVISOR** | Manages Credit Officers, approves loans, generates reports | Team leaders managing field staff |
+| **CREDIT_OFFICER** | Day-to-day operations, creates loans, records repayments | Field staff working with unions |
+
+<Note>
+Each Credit Officer can be assigned to a Supervisor. This creates a reporting hierarchy that enables supervisor reports and approval workflows.
+</Note>
+
+## Creating a New User
+
+<Steps>
+  <Step title="Navigate to User Management">
+    From the sidebar menu:
+    1. Click **"User Management"**
+    2. Click **"Users"**
+    
+    You'll see a list of all existing users in the system.
+  </Step>
+
+  <Step title="Click Add User Button">
+    Click the **"+ Add User"** button in the top right corner of the page.
+  </Step>
+
+  <Step title="Fill in Required Information">
+    Complete the user creation form with the following required fields:
+
+    | Field | Description | Required | Format |
+    |-------|-------------|----------|--------|
+    | **First Name** | User's first name | ✅ Yes | Text |
+    | **Last Name** | User's last name | ✅ Yes | Text |
+    | **Email** | Login email address (must be unique) | ✅ Yes | Valid email |
+    | **Password** | Initial password for the user | ✅ Yes | Min 6 characters |
+    | **Role** | User role in the system | ✅ Yes | ADMIN, SUPERVISOR, or CREDIT_OFFICER |
+    | **Phone** | Contact phone number | Optional | Text |
+    | **Address** | Physical address | Optional | Text |
+
+    <Warning>
+    Email addresses must be unique in the system. If you try to create a user with an existing email, you'll receive an error.
+    </Warning>
+  </Step>
+
+  <Step title="Assign Supervisor (Credit Officers Only)">
+    If you're creating a **Credit Officer**, you'll see an additional field:
+
+    - **Supervisor**: Select which Supervisor this Credit Officer reports to
+
+    This field:
+    - Is only available when Role is set to `CREDIT_OFFICER`
+    - Allows Supervisors to see this officer's loans and performance
+    - Enables the approval workflow (officers submit, supervisors approve)
+
+    <Tip>
+    Assigning supervisors correctly is crucial for the approval workflow. Credit Officers can only submit loans for approval to their assigned supervisor.
+    </Tip>
+  </Step>
+
+  <Step title="Save the User">
+    Click **"Create User"** to save the new user.
+
+    After creation:
+    - The user will appear in the users list
+    - They can immediately log in using their email and password
+    - You may want to inform them of their credentials securely
+  </Step>
+</Steps>
+
+## Assigning and Changing Supervisors
+
+You can assign or reassign supervisors for Credit Officers at any time.
+
+<Steps>
+  <Step title="Locate the Credit Officer">
+    1. Go to **User Management** → **Users**
+    2. Find the Credit Officer you want to assign
+    3. Use the search box if needed to find them quickly
+  </Step>
+
+  <Step title="Open Edit Mode">
+    Click the **Edit** icon (pencil) next to the user's name.
+  </Step>
+
+  <Step title="Select Supervisor">
+    In the edit form:
+    1. Locate the **Supervisor** dropdown
+    2. Select the new supervisor from the list
+    3. Only users with role `SUPERVISOR` will appear in this list
+
+    <Note>
+    To remove a supervisor assignment, select the empty option or "None" from the dropdown. This will set the `supervisorId` to `null`.
+    </Note>
+  </Step>
+
+  <Step title="Save Changes">
+    Click **"Save Changes"** to update the supervisor assignment.
+
+    The change takes effect immediately:
+    - The new supervisor can now see this officer's data
+    - The previous supervisor will no longer see this officer's loans
+    - All existing loans remain assigned to the officer
+  </Step>
+</Steps>
+
+## Managing User Profiles
+
+Administrators can update user information at any time.
+
+<Steps>
+  <Step title="Navigate to the User">
+    1. Go to **User Management** → **Users**
+    2. Find the user in the list
+    3. Click the **Edit** icon (pencil)
+  </Step>
+
+  <Step title="Update Profile Information">
+    You can modify:
+
+    **Personal Information:**
+    - First Name
+    - Last Name
+    - Phone number
+    - Address
+
+    **Account Settings:**
+    - Email address (must remain unique)
+    - Role (ADMIN, SUPERVISOR, CREDIT_OFFICER)
+    - Supervisor assignment (for Credit Officers)
+    - Active status (see [Deactivating Users](#deactivating-users))
+
+    **Profile Picture:**
+    - Upload a new profile image
+    - Remove existing profile image by setting `removeProfileImage` to `true`
+  </Step>
+
+  <Step title="Save Updates">
+    Click **"Save Changes"** to apply your modifications.
+  </Step>
+</Steps>
+
+<Warning>
+Changing a user's role may affect their access permissions immediately. For example:
+- Changing SUPERVISOR → CREDIT_OFFICER will remove their ability to approve loans
+- Changing CREDIT_OFFICER → SUPERVISOR will grant them approval permissions
+</Warning>
+
+## Resetting User Passwords
+
+As an administrator, you can reset passwords for any user.
+
+<Steps>
+  <Step title="Locate the User">
+    Navigate to **User Management** → **Users** and find the user who needs a password reset.
+  </Step>
+
+  <Step title="Access Password Reset">
+    1. Open the user's details by clicking on their name or the View icon
+    2. Look for the **"Reset Password"** button
+    3. Click the button to open the password reset dialog
+  </Step>
+
+  <Step title="Enter New Password">
+    1. Enter a new password (minimum 6 characters)
+    2. Confirm the password
+    3. Click **"Confirm"** to reset
+
+    <Tip>
+    After resetting a password, securely communicate the new credentials to the user. Consider asking them to change it again on their next login.
+    </Tip>
+  </Step>
+</Steps>
+
+Users can also reset their own passwords using the "Forgot Password" link on the login page (USER_GUIDE.md:60-68).
+
+## Deactivating Users
+
+Instead of deleting users (which can affect data integrity), you should deactivate them.
+
+<Steps>
+  <Step title="Navigate to the User">
+    Go to **User Management** → **Users** and locate the user you want to deactivate.
+  </Step>
+
+  <Step title="Edit the User">
+    Click the **Edit** icon (pencil) next to their name.
+  </Step>
+
+  <Step title="Toggle Active Status">
+    1. Find the **"Active"** or **"isActive"** toggle
+    2. Switch it to **OFF** or set `isActive` to `false`
+    3. Click **"Save Changes"**
+  </Step>
+
+  <Step title="Verify Deactivation">
+    After deactivation:
+    - The user cannot log in to the system
+    - Their historical data remains intact
+    - You can reactivate them at any time by setting `isActive` back to `true`
+  </Step>
+</Steps>
+
+<Warning>
+**Important:** Deactivated users:
+- Cannot access the platform
+- Still appear in historical records
+- Can be filtered out using the "Active" filter on the users list
+- Should be used instead of deletion for users with existing loans or repayments
+</Warning>
+
+## Checking User Dependencies
+
+Before deleting a user, check if they have associated records.
+
+<Steps>
+  <Step title="Access Dependency Check">
+    Use the API endpoint `GET /api/users/:id/dependencies` or click the **"Check Dependencies"** button in the user details view.
+  </Step>
+
+  <Step title="Review Dependencies">
+    The system will show:
+    - Number of unions managed (for Credit Officers)
+    - Number of loans created
+    - Number of repayments recorded
+    - Number of supervised officers (for Supervisors)
+
+    <Note>
+    According to user.controller.ts:199-206, this information helps you decide whether to delete or deactivate a user.
+    </Note>
+  </Step>
+
+  <Step title="Decide on Action">
+    **If user has dependencies:**
+    - Recommended: Deactivate instead of delete
+    - Alternative: Reassign their records before deletion
+
+    **If user has no dependencies:**
+    - Safe to delete if truly necessary
+  </Step>
+</Steps>
+
+## Viewing User Activity
+
+Track user login history and activity:
+
+1. Navigate to the user's profile
+2. View the following information:
+   - **Last Login**: When they last accessed the system (`lastLoginAt`)
+   - **Last Activity**: Most recent action timestamp (`lastActivityAt`)
+   - **Login Count**: Total number of logins (`loginCount`)
+
+Refer to the schema at backend/prisma/schema.prisma:105-106 for these tracked fields.
+
+## User Filtering and Search
+
+The users list supports powerful filtering:
+
+| Filter | Description | Values |
+|--------|-------------|---------|
+| **Search** | Search by name or email | Text input |
+| **Role** | Filter by user role | ADMIN, SUPERVISOR, CREDIT_OFFICER |
+| **Active Status** | Show active or inactive users | True/False |
+| **Supervisor** | Filter officers by their supervisor | Supervisor ID |
+
+<Tip>
+Use the search functionality to quickly find users by typing their first name, last name, or email address.
+</Tip>
+
+## API Reference
+
+For developers integrating with the user management system:
+
+- [User API Reference](/api/auth/overview)
+- [Authentication API](/api/auth/login)
+
+## Related Features
+
+- [Loan Processing Guide](/guides/loan-processing) - Learn how Credit Officers create loans
+- [Reporting & Analytics](/guides/reporting-analytics) - Understand supervisor reports
+- [Roles & Permissions](/roles/overview) - Detailed role capabilities
+
+## Best Practices
+
+<Tip>
+**Security Tips:**
+- Use strong, unique passwords for all accounts
+- Reset passwords for users who haven't logged in for extended periods
+- Regularly review active users and deactivate unused accounts
+- Don't share login credentials between multiple people
+</Tip>
+
+<Warning>
+**Common Mistakes to Avoid:**
+- Deleting users with historical records (use deactivation instead)
+- Creating duplicate users with similar email addresses
+- Forgetting to assign supervisors to Credit Officers
+- Changing roles without considering permission impacts
+</Warning>

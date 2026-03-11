@@ -1,0 +1,708 @@
+---
+title: "Reports and Analytics"
+description: "Generate supervisor reports, track performance, and export operational data"
+icon: "chart-pie"
+---
+
+## Overview
+
+The Reporting system provides comprehensive analytics and insights for supervisors and administrators to monitor operations, track performance, and make data-driven decisions.
+
+<Info>
+  Reports are primarily designed for **Supervisors** and **Administrators**. Credit Officers see their own performance data in the dashboard.
+</Info>
+
+## Report Types
+
+The system supports multiple report types:
+
+```prisma
+enum ReportType {
+  DAILY      // Single day snapshot
+  WEEKLY     // 7-day period
+  MONTHLY    // Calendar month
+  QUARTERLY  // 3-month period
+  CUSTOM     // User-defined date range
+}
+```
+
+<CardGroup cols={3}>
+  <Card title="DAILY" icon="calendar-day">
+    Daily operations snapshot for quick daily review
+  </Card>
+  
+  <Card title="WEEKLY" icon="calendar-week">
+    7-day rolling window for week-over-week trends
+  </Card>
+  
+  <Card title="MONTHLY" icon="calendar">
+    Full calendar month analysis for monthly reviews
+  </Card>
+  
+  <Card title="QUARTERLY" icon="chart-line">
+    3-month period for strategic planning
+  </Card>
+  
+  <Card title="CUSTOM" icon="sliders">
+    Flexible date range for specific analysis needs
+  </Card>
+</CardGroup>
+
+## Report Session Model
+
+Reports are saved as sessions for historical reference:
+
+```prisma
+model ReportSession {
+  id           String     @id
+  supervisorId String
+  supervisor   User
+  
+  reportType  ReportType @default(CUSTOM)
+  title       String?
+  periodStart DateTime
+  periodEnd   DateTime
+  
+  // Cached metrics at report generation time
+  totalOfficers  Int     @default(0)
+  totalUnions    Int     @default(0)
+  totalMembers   Int     @default(0)
+  totalLoans     Int     @default(0)
+  activeLoans    Int     @default(0)
+  completedLoans Int     @default(0)
+  defaultedLoans Int     @default(0)
+  
+  totalDisbursed   Decimal @default(0) @db.Decimal(14, 2)
+  totalRepaid      Decimal @default(0) @db.Decimal(14, 2)
+  totalOutstanding Decimal @default(0) @db.Decimal(14, 2)
+  collectionRate   Decimal @default(0) @db.Decimal(5, 2)
+  
+  // Full report data snapshot
+  reportData Json?
+  
+  // Officer performance breakdown
+  officerMetrics Json?
+  
+  generatedAt DateTime @default(now())
+}
+```
+
+<Note>
+  Report sessions capture a snapshot of data at generation time, allowing historical comparison even as live data changes.
+</Note>
+
+## Accessing Reports
+
+<Steps>
+  <Step title="Navigate">
+    Click **Reports** → **Supervisor Reports** in the sidebar
+  </Step>
+  
+  <Step title="View Dashboard">
+    See real-time dashboard or generate new report
+  </Step>
+</Steps>
+
+<Warning>
+  **Permission Required:** Only Supervisors and Administrators can access the Reports section.
+</Warning>
+
+## Supervisor Dashboard
+
+Real-time overview of your team's performance:
+
+### Key Metrics
+
+<CardGroup cols={2}>
+  <Card title="Team Overview" icon="users">
+    - Total credit officers under supervision
+    - Total unions managed
+    - Total union members
+    - Active unions count
+  </Card>
+  
+  <Card title="Loan Portfolio" icon="credit-card">
+    - Total loans issued
+    - Active loans
+    - Completed loans
+    - Defaulted loans
+    - Loans by status breakdown
+  </Card>
+  
+  <Card title="Financial Summary" icon="money-bill-wave">
+    - Total disbursed (Naira)
+    - Total repaid (Naira)
+    - Outstanding balance (Naira)
+    - Collection rate percentage
+  </Card>
+  
+  <Card title="Performance Indicators" icon="chart-line">
+    - Average loan size
+    - Approval rate
+    - Default rate
+    - Portfolio at risk
+  </Card>
+</CardGroup>
+
+### Date Range Selection
+
+<Accordion title="Period Filters">
+  Choose analysis period:
+  - **Today** - Current day only
+  - **This Week** - Last 7 days
+  - **This Month** - Current calendar month
+  - **This Quarter** - Last 3 months
+  - **Custom Range** - Select specific start and end dates
+</Accordion>
+
+## Generating a New Report
+
+<Steps>
+  <Step title="Start Generation">
+    On Supervisor Reports page, click **Generate Report**
+  </Step>
+  
+  <Step title="Select Report Type">
+    Choose from:
+    - Daily
+    - Weekly
+    - Monthly
+    - Quarterly
+    - Custom
+  </Step>
+  
+  <Step title="Set Date Range">
+    **For preset types (DAILY, WEEKLY, etc.):**
+    - Select the end date
+    - System calculates start date automatically
+    
+    **For CUSTOM:**
+    - Select both start and end dates
+  </Step>
+  
+  <Step title="Add Title (Optional)">
+    Give your report a descriptive name
+    
+    Example: "January 2024 Performance Review"
+  </Step>
+  
+  <Step title="Generate">
+    Click **Generate Report**
+    
+    System calculates all metrics and saves report session
+  </Step>
+  
+  <Step title="View Results">
+    Report opens with complete data and visualizations
+  </Step>
+</Steps>
+
+### API Endpoint
+
+```typescript
+// POST /api/supervisor-reports/generate
+const generateReport = async (data: {
+  supervisorId?: string;  // Admin can specify
+  reportType: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'CUSTOM';
+  periodStart: Date;
+  periodEnd: Date;
+  title?: string;
+}) => {
+  // Calculates metrics for date range
+  // Saves report session
+  // Returns complete report data
+}
+```
+
+## Report Contents
+
+Each generated report includes:
+
+### Portfolio Summary
+
+<Accordion title="Overall Statistics">
+  - Total loans issued in period
+  - New loans created
+  - Loans approved
+  - Loans disbursed
+  - Loans completed
+  - Loans defaulted
+  - Total principal disbursed
+  - Total interest earned
+  - Processing fees collected
+</Accordion>
+
+### Collection Report
+
+<Accordion title="Repayment Performance">
+  - Total payments received
+  - Total amount collected (Naira)
+  - Collection rate (% of expected)
+  - Payments on time
+  - Late payments
+  - Missed payments
+  - Average payment amount
+  - Collections by method (CASH, TRANSFER, etc.)
+</Accordion>
+
+### Arrears Analysis
+
+<Accordion title="Overdue Tracking">
+  - Number of overdue loans
+  - Total overdue amount
+  - Overdue by age:
+    - 1-30 days
+    - 31-60 days
+    - 61-90 days
+    - 90+ days
+  - Portfolio at Risk (PAR) metrics
+  - Default rate
+</Accordion>
+
+### Officer Performance
+
+<Accordion title="Individual Officer Metrics">
+  For each credit officer:
+  - Name and contact
+  - Number of unions managed
+  - Number of members
+  - Loans processed
+  - Total disbursed
+  - Collection rate
+  - Overdue count
+  - New members added
+  - Active loans count
+</Accordion>
+
+### Union Performance
+
+<Accordion title="Union-Level Analysis">
+  For each union:
+  - Union name and location
+  - Credit officer assigned
+  - Total members
+  - Active loans
+  - Total disbursed
+  - Total collected
+  - Collection rate
+  - Overdue loans
+  - Top performers
+</Accordion>
+
+## Viewing Saved Reports
+
+<Steps>
+  <Step title="Access Report History">
+    On Supervisor Reports page, scroll to **Report Sessions**
+  </Step>
+  
+  <Step title="Browse Sessions">
+    See list of all previously generated reports with:
+    - Report title
+    - Report type
+    - Date range
+    - Generated date
+    - Key metrics preview
+  </Step>
+  
+  <Step title="Open Report">
+    Click on any report to view full details
+  </Step>
+</Steps>
+
+### Report List Features
+
+<CardGroup cols={2}>
+  <Card title="Pagination" icon="list">
+    Navigate through saved reports (10 per page)
+  </Card>
+  
+  <Card title="Search" icon="search">
+    Find reports by title or date
+  </Card>
+  
+  <Card title="Actions" icon="ellipsis">
+    - View full report
+    - Export to Excel/PDF
+    - Delete report
+  </Card>
+  
+  <Card title="Comparison" icon="code-compare">
+    Open multiple reports to compare periods
+  </Card>
+</CardGroup>
+
+## Exporting Reports
+
+Reports can be exported in multiple formats:
+
+### Export Options
+
+<CardGroup cols={3}>
+  <Card title="Excel Export" icon="file-excel">
+    Full data with multiple sheets:
+    - Summary
+    - Officer Performance
+    - Union Analysis
+    - Loan Details
+    - Collection Data
+  </Card>
+  
+  <Card title="PDF Export" icon="file-pdf">
+    Formatted report with:
+    - Executive summary
+    - Charts and graphs
+    - Data tables
+    - Printable layout
+  </Card>
+  
+  <Card title="CSV Export" icon="file-csv">
+    Raw data for:
+    - Custom analysis
+    - Import to other tools
+    - Database integration
+  </Card>
+</CardGroup>
+
+### Export Process
+
+<Steps>
+  <Step title="Open Report">
+    Navigate to the report you want to export
+  </Step>
+  
+  <Step title="Click Export">
+    Click the **Export** button in report header
+  </Step>
+  
+  <Step title="Choose Format">
+    Select:
+    - Excel (.xlsx)
+    - PDF (.pdf)
+    - CSV (.csv)
+  </Step>
+  
+  <Step title="Download">
+    File downloads automatically to your device
+  </Step>
+</Steps>
+
+<Tip>
+  Excel exports include formulas and charts, making them ideal for further analysis
+</Tip>
+
+## Dashboard Statistics (Real-Time)
+
+Access live metrics without generating a saved report:
+
+```typescript
+// GET /api/supervisor-reports/dashboard?supervisorId=xxx&periodStart=2024-01-01&periodEnd=2024-12-31
+const getDashboard = async (params: {
+  supervisorId?: string;  // Admin can view any supervisor
+  periodStart?: Date;
+  periodEnd?: Date;
+}) => {
+  return {
+    summary: {
+      totalOfficers: number;
+      totalUnions: number;
+      totalMembers: number;
+      totalLoans: number;
+      activeLoans: number;
+      // ... more metrics
+    },
+    officers: Array<{
+      id: string;
+      name: string;
+      metrics: {
+        unionsCount: number;
+        membersCount: number;
+        loansCount: number;
+        // ... performance data
+      }
+    }>,
+    unions: Array<{
+      id: string;
+      name: string;
+      officer: string;
+      metrics: {
+        // ... union data
+      }
+    }>,
+    trends: {
+      // ... time-series data
+    }
+  };
+}
+```
+
+## Key Performance Indicators (KPIs)
+
+### Collection Rate
+
+<Accordion title="Collection Rate Calculation">
+  ```typescript
+  collectionRate = (totalRepaid / totalDisbursed) × 100
+  ```
+  
+  **Interpretation:**
+  - **90-100%** - Excellent collection performance
+  - **80-89%** - Good, room for improvement
+  - **70-79%** - Needs attention
+  - **Below 70%** - Critical, immediate action required
+</Accordion>
+
+### Portfolio at Risk (PAR)
+
+<Accordion title="PAR Calculation">
+  ```typescript
+  PAR30 = (outstandingBalanceOfLoansOverdue30Days / totalOutstandingBalance) × 100
+  ```
+  
+  **Thresholds:**
+  - **0-5%** - Healthy portfolio
+  - **5-10%** - Monitor closely
+  - **10-15%** - Take corrective action
+  - **Above 15%** - Portfolio in danger
+</Accordion>
+
+### Default Rate
+
+<Accordion title="Default Rate Calculation">
+  ```typescript
+  defaultRate = (defaultedLoans / totalLoans) × 100
+  ```
+  
+  **Target:** Keep below 5%
+</Accordion>
+
+### Officer Productivity
+
+<Accordion title="Productivity Metrics">
+  - **Loans per Officer** = Total Loans / Number of Officers
+  - **Disbursement per Officer** = Total Disbursed / Number of Officers
+  - **Members per Officer** = Total Members / Number of Officers
+  
+  Use for workload balancing and performance reviews
+</Accordion>
+
+## Credit Officer Metrics
+
+View detailed performance for individual officers:
+
+### Access Officer Details
+
+<Steps>
+  <Step title="From Report">
+    In any generated report, click on an officer's name
+  </Step>
+  
+  <Step title="View Metrics">
+    See complete officer profile:
+    - Personal information
+    - Assigned unions list
+    - Member count
+    - Loan portfolio
+    - Collection performance
+    - Trend charts
+  </Step>
+</Steps>
+
+### Officer Metrics Include
+
+<CardGroup cols={2}>
+  <Card title="Portfolio Size">
+    - Total loans managed
+    - Total principal disbursed
+    - Outstanding balance
+    - Average loan size
+  </Card>
+  
+  <Card title="Collection Performance">
+    - Collection rate
+    - On-time payments
+    - Late payments
+    - Overdue loans
+  </Card>
+  
+  <Card title="Activity Metrics">
+    - New loans created
+    - Loans approved
+    - Loans disbursed
+    - Repayments recorded
+  </Card>
+  
+  <Card title="Member Management">
+    - New members added
+    - Total members
+    - Member verification rate
+    - Member satisfaction
+  </Card>
+</CardGroup>
+
+## Union-Level Reports
+
+Analyze performance by union:
+
+<CardGroup cols={2}>
+  <Card title="Top Performers" icon="trophy">
+    Unions with:
+    - Highest collection rates
+    - Most loans
+    - Best payment history
+    - Lowest default rates
+  </Card>
+  
+  <Card title="Needs Attention" icon="exclamation-triangle">
+    Unions with:
+    - Low collection rates
+    - High overdue amounts
+    - Increasing defaults
+    - Member complaints
+  </Card>
+</CardGroup>
+
+### Union Comparison
+
+Compare multiple unions side-by-side:
+- Collection rates
+- Loan volumes
+- Member growth
+- Default rates
+- Average loan sizes
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Regular Review" icon="calendar-check">
+    - Generate weekly reports every Monday
+    - Monthly reports at month-end
+    - Quarterly reviews for strategic planning
+    - Compare period-over-period trends
+  </Card>
+  
+  <Card title="Action Items" icon="clipboard-check">
+    - Document findings in report notes
+    - Create action plans for issues
+    - Follow up on low-performing officers
+    - Recognize high performers
+  </Card>
+  
+  <Card title="Data-Driven Decisions" icon="chart-line">
+    - Use metrics to guide training needs
+    - Identify process improvements
+    - Allocate resources based on data
+    - Set realistic targets
+  </Card>
+  
+  <Card title="Communication" icon="comments">
+    - Share reports with your team
+    - Discuss trends in meetings
+    - Provide constructive feedback
+    - Celebrate successes
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Cannot access reports">
+    **Check:**
+    - Your role is Supervisor or Administrator
+    - You have active credit officers under you
+    - You're logged in correctly
+    
+    **Solution:** Contact administrator to verify role
+  </Accordion>
+  
+  <Accordion title="Report generation fails">
+    **Possible causes:**
+    - Date range too large (try smaller period)
+    - No data in selected period
+    - System error
+    
+    **Solution:** 
+    - Try different date range
+    - Check if data exists for period
+    - Refresh page and retry
+  </Accordion>
+  
+  <Accordion title="Numbers don't match dashboard">
+    **Explanation:** 
+    - Dashboard shows real-time data
+    - Reports are snapshots at generation time
+    - Data changes between generation and viewing
+    
+    **Solution:** Generate new report for latest data
+  </Accordion>
+  
+  <Accordion title="Export not downloading">
+    **Check:**
+    - Pop-up blocker settings
+    - Browser download permissions
+    - Sufficient disk space
+    
+    **Solution:** 
+    - Allow pop-ups from the site
+    - Check browser downloads folder
+    - Try different browser
+  </Accordion>
+  
+  <Accordion title="Missing officer data">
+    **Reasons:**
+    - Officer has no activity in period
+    - Officer was added after report period
+    - Officer not assigned to you as supervisor
+    
+    **Solution:** Verify officer assignment and activity dates
+  </Accordion>
+</AccordionGroup>
+
+## API Reference
+
+```typescript
+// Get real-time dashboard
+GET /api/supervisor-reports/dashboard?supervisorId=xxx&periodStart=2024-01-01&periodEnd=2024-12-31
+
+// Generate new report session
+POST /api/supervisor-reports/generate
+Body: {
+  supervisorId?: string;  // Admin only
+  reportType: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'CUSTOM';
+  periodStart: Date;
+  periodEnd: Date;
+  title?: string;
+}
+
+// Get all report sessions
+GET /api/supervisor-reports/sessions?supervisorId=xxx&page=1&limit=10
+
+// Get report session by ID
+GET /api/supervisor-reports/sessions/:id?supervisorId=xxx
+
+// Delete report session
+DELETE /api/supervisor-reports/sessions/:id
+
+// Get credit officers under supervisor
+GET /api/supervisor-reports/officers?supervisorId=xxx
+```
+
+## Summary
+
+Reporting provides:
+- ✅ 5 report types (DAILY, WEEKLY, MONTHLY, QUARTERLY, CUSTOM)
+- ✅ Real-time supervisor dashboard
+- ✅ Saved report sessions
+- ✅ Officer performance metrics
+- ✅ Union-level analysis
+- ✅ Portfolio health indicators (PAR, collection rate, default rate)
+- ✅ Export to Excel, PDF, and CSV
+- ✅ Historical comparison
+- ✅ Role-based access (Supervisor/Admin only)
+- ✅ Comprehensive KPI tracking
+
+<Card title="Next Steps" icon="arrow-right">
+  - Monitor [Dashboard](/features/dashboard) for daily operations
+  - Review [Loans](/features/loans) portfolio health
+  - Track [Repayments](/features/repayments) collection performance
+</Card>

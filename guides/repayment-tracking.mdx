@@ -1,0 +1,571 @@
+---
+title: 'Repayment Tracking Guide'
+description: 'Complete guide to recording repayments, managing payment schedules, and handling partial or overdue payments'
+---
+
+## Overview
+
+By the end of this guide, you will understand how to record loan repayments, choose appropriate payment methods, handle partial payments and overpayments, understand how the system allocates payments, track schedule status, and manage overdue accounts.
+
+## Understanding Repayment Flow
+
+When a borrower makes a payment:
+
+1. You record the repayment with amount, date, and method
+2. System automatically allocates payment to schedule items
+3. Payment is applied to interest first, then principal
+4. Schedule items are updated (PENDING → PAID or PARTIAL)
+5. Loan balance is recalculated
+6. If overdue items exist, they're paid first
+
+<Note>
+The allocation logic is automatic. You simply record the payment amount, and the system handles the distribution across schedule items according to backend/src/controllers/repayment.controller.ts.
+</Note>
+
+## Recording a New Repayment
+
+### Method 1: From the Repayments Page
+
+<Steps>
+  <Step title="Navigate to Repayments">
+    From the sidebar:
+    1. Click **"Business Management"**
+    2. Click **"Repayments"**
+    3. Click **"+ Add Repayment"** button
+  </Step>
+
+  <Step title="Select the Loan">
+    1. Choose the loan from the dropdown
+    2. Search by borrower name or loan number
+    3. Only ACTIVE loans appear in the list
+
+    <Tip>
+    Start typing the borrower's name to quickly filter the loan list.
+    </Tip>
+  </Step>
+
+  <Step title="Enter Repayment Details">
+    Fill in all required information:
+
+    | Field | Description | Required | Format |
+    |-------|-------------|----------|--------|
+    | **Amount** | Payment amount received | ✅ Yes | Decimal (14,2) |
+    | **Payment Date** | When payment was made | ✅ Yes | Date (YYYY-MM-DD) |
+    | **Payment Method** | How payment was received | ✅ Yes | See payment methods below |
+    | **Reference Number** | Transaction reference | Optional | Text |
+    | **Notes** | Additional information | Optional | Text |
+
+    ### Payment Methods
+
+    The system supports these payment methods (RepaymentMethod enum, schema.prisma:49-56):
+
+    | Method | Description | Use Case |
+    |--------|-------------|----------|
+    | **CASH** | Cash payment | Walk-in payments, field collections |
+    | **TRANSFER** | Bank transfer | Online transfers, wire transfers |
+    | **POS** | Point of Sale terminal | Card payments |
+    | **MOBILE** | Mobile money | Mobile wallet payments |
+    | **USSD** | USSD code payment | Mobile USSD transactions |
+    | **OTHER** | Other payment types | Any other payment method |
+
+    <Warning>
+    Always select the correct payment method for accurate reporting and reconciliation.
+    </Warning>
+  </Step>
+
+  <Step title="Verify and Submit">
+    1. Double-check the amount and date
+    2. Ensure payment method is correct
+    3. Click **"Record Repayment"**
+
+    Result:
+    - Repayment is saved to the database
+    - Payment is automatically allocated to schedule items
+    - Loan balance is updated
+    - Schedule statuses change accordingly
+  </Step>
+</Steps>
+
+### Method 2: From the Loan Detail Page
+
+<Steps>
+  <Step title="Open the Specific Loan">
+    1. Navigate to **Business Management** → **Loans**
+    2. Find the loan (search by borrower name or loan number)
+    3. Click on the loan to open details
+  </Step>
+
+  <Step title="Access Add Repayment">
+    In the loan detail page:
+    1. Scroll to the **Repayment** section
+    2. Click **"Add Repayment"** or **"Record Payment"** button
+  </Step>
+
+  <Step title="Fill in Payment Details">
+    The loan is already pre-selected, so just enter:
+    - Payment amount
+    - Payment date
+    - Payment method
+    - Reference number (if applicable)
+    - Notes
+
+    <Note>
+    This method is faster when you're already viewing a specific loan, as the loan selection is automatic.
+    </Note>
+  </Step>
+
+  <Step title="Submit the Repayment">
+    Click **"Record Repayment"** to save.
+  </Step>
+</Steps>
+
+Refer to repayment.controller.ts:6-26 for the repayment creation logic.
+
+## How Payments Are Allocated
+
+The system follows a specific allocation strategy:
+
+### Allocation Priority
+
+1. **Overdue items first**: Payments go to overdue schedule items before current ones
+2. **Interest before principal**: Within each schedule item, interest is paid first
+3. **Oldest to newest**: Overdue items are paid in chronological order
+4. **Sequential application**: Payment flows through schedule items in sequence
+
+### Example
+
+Imagine a loan with these schedule items:
+
+| Sequence | Due Date | Total Due | Status |
+|----------|----------|-----------|--------|
+| 1 | 2026-01-15 | ₦5,000 | OVERDUE (unpaid) |
+| 2 | 2026-02-15 | ₦5,000 | PENDING |
+| 3 | 2026-03-15 | ₦5,000 | PENDING |
+
+Borrower pays **₦7,500** on March 10, 2026:
+
+1. **₦5,000** → Schedule item #1 (overdue)
+   - Status changes to PAID
+2. **₦2,500** → Schedule item #2 (current)
+   - Status changes to PARTIAL
+3. Schedule item #3 remains PENDING
+
+<Tip>
+The system handles all allocation automatically via RepaymentAllocation records (schema.prisma:336-350). You can view the allocation breakdown in the repayment details.
+</Tip>
+
+## Choosing the Right Payment Method
+
+Selecting the correct payment method is important for:
+- Accurate financial reporting
+- Bank reconciliation
+- Payment method analytics
+- Audit trails
+
+### Guidelines
+
+| Method | When to Use | Reference Number |
+|--------|-------------|------------------|
+| **CASH** | Physical cash received | Receipt number |
+| **TRANSFER** | Bank-to-bank transfer | Transfer confirmation code |
+| **POS** | Card payment via terminal | Transaction ID from POS |
+| **MOBILE** | Mobile money (M-Pesa, etc.) | Mobile transaction ID |
+| **USSD** | USSD banking payment | USSD transaction reference |
+| **OTHER** | Checks, other methods | Check number or other ref |
+
+<Warning>
+Always record the payment method reference number for non-cash payments. This is crucial for reconciliation and dispute resolution.
+</Warning>
+
+## Handling Partial Payments
+
+Borrowers sometimes pay less than the full scheduled amount.
+
+<Steps>
+  <Step title="Record the Actual Amount">
+    Simply record the actual amount received, even if it's less than expected.
+
+    Example:
+    - Expected payment: ₦5,000
+    - Actual payment: ₦3,000
+    - Record: ₦3,000
+  </Step>
+
+  <Step title="System Updates Schedule">
+    After recording:
+    - Schedule item status changes to `PARTIAL`
+    - The `paidAmount` field increases by ₦3,000
+    - Remaining balance: ₦2,000
+    - Schedule item stays PARTIAL until fully paid
+  </Step>
+
+  <Step title="Track the Shortfall">
+    The shortfall is tracked automatically:
+    - View the schedule to see PARTIAL status
+    - The remaining amount is visible: `totalDue - paidAmount`
+    - No additional configuration needed
+
+    <Note>
+    According to schema.prisma:295-296, each schedule item tracks both `totalDue` and `paidAmount`, making it easy to see partial payments.
+    </Note>
+  </Step>
+
+  <Step title="Collect Remaining Amount">
+    When the borrower pays the remaining ₦2,000:
+    1. Record another repayment for ₦2,000
+    2. System allocates it to the PARTIAL schedule item
+    3. Once `paidAmount` reaches `totalDue`, status changes to PAID
+  </Step>
+</Steps>
+
+<Tip>
+**Best Practice:** Add notes to partial payment records explaining the reason (e.g., "Borrower had emergency expenses" or "Agreed partial payment plan").
+</Tip>
+
+## Handling Overpayments
+
+Borrowers sometimes pay more than the scheduled amount.
+
+### What Happens
+
+1. System allocates payment to current schedule item
+2. Excess automatically flows to next schedule items
+3. Future payments may be prepaid
+4. Loan is paid off faster
+
+### Example
+
+Schedule:
+- Item 1: ₦5,000 due today
+- Item 2: ₦5,000 due next month
+- Item 3: ₦5,000 due in 2 months
+
+Borrower pays **₦12,000**:
+1. ₦5,000 → Item 1 (PAID)
+2. ₦5,000 → Item 2 (PAID)
+3. ₦2,000 → Item 3 (PARTIAL)
+
+Result: Two installments are paid in advance.
+
+<Note>
+Overpayments reduce the principal balance faster, which can reduce total interest paid over the life of the loan.
+</Note>
+
+### Tracking Overpayments
+
+View the repayment schedule to see:
+- Which items are marked PAID ahead of due date
+- How much has been prepaid
+- Updated loan completion date (if applicable)
+
+## Understanding Schedule Status
+
+Each schedule item has one of four statuses (ScheduleStatus enum, schema.prisma:42-47):
+
+### Status Definitions
+
+| Status | Meaning | When It Occurs |
+|--------|---------|----------------|
+| **PENDING** | Not yet paid, not overdue | Due date is in the future, no payment made |
+| **PARTIAL** | Partially paid | Some payment recorded but less than totalDue |
+| **PAID** | Fully paid | paidAmount >= totalDue |
+| **OVERDUE** | Past due and unpaid | dueDate has passed, not fully paid |
+
+### Status Transitions
+
+Schedule items move through statuses as payments are made:
+
+```
+PENDING → PARTIAL → PAID
+   ↓
+OVERDUE → PARTIAL → PAID
+```
+
+<Warning>
+**OVERDUE Status:** Schedule items automatically become OVERDUE when their due date passes and they're not fully paid. The system updates this status automatically.
+</Warning>
+
+## Monitoring Repayment Schedules
+
+The **Repayment Schedules** page provides a powerful overview of all payments.
+
+<Steps>
+  <Step title="Access the Schedules Dashboard">
+    From the sidebar:
+    1. Go to **"Business Management"**
+    2. Click **"Repayment Schedules"**
+
+    You'll see:
+    - Summary cards with aggregate statistics
+    - Detailed list of all schedule items
+    - Advanced filtering options
+  </Step>
+
+  <Step title="Review Summary Cards">
+    The top of the page shows real-time statistics:
+
+    | Card | Shows | Use Case |
+    |------|-------|----------|
+    | **Total Schedule** | Total number of schedule items | Overall workload |
+    | **Pending Payments** | Items with status PENDING | Upcoming collections |
+    | **Overdue** | Items with status OVERDUE | Priority collections |
+    | **Total Amount Due** | Sum of all pending + overdue | Cash flow projection |
+
+    <Tip>
+    These cards update based on your active filters, giving you filtered totals instantly.
+    </Tip>
+  </Step>
+
+  <Step title="Apply Filters">
+    Filter the schedule list by:
+
+    | Filter | Options | Use Case |
+    |--------|---------|----------|
+    | **Search** | Borrower name | Find specific member |
+    | **Union** | Union dropdown | See one union's schedules |
+    | **Union Member** | Member dropdown | All schedules for one member |
+    | **Credit Officer** | Officer dropdown | One officer's portfolio |
+    | **Status** | PENDING, PAID, PARTIAL, OVERDUE | Focus on specific status |
+    | **Date Range** | Today Only, Single Date, Date Range | Schedules in time period |
+    | **Amount Range** | Min/Max | Find large or small payments |
+
+    <Note>
+    Refer to repayment.controller.ts:154-165 for the complete list of filter parameters supported by the API.
+    </Note>
+  </Step>
+
+  <Step title="Use Quick Actions">
+    From the schedule list, you can:
+    - Click **"Pay Due"** to record a standard payment (full amount)
+    - Click **"Custom"** for partial or overpayments
+    - Sort by clicking column headers
+    - Adjust rows per page (10, 20, 50, 100)
+  </Step>
+</Steps>
+
+## Handling Overdue Payments
+
+Managing overdue accounts is critical for portfolio health.
+
+<Steps>
+  <Step title="Identify Overdue Accounts">
+    1. Go to **Repayment Schedules**
+    2. Filter by **Status = OVERDUE**
+    3. Sort by due date (oldest first)
+
+    The **Overdue** summary card shows the total count.
+  </Step>
+
+  <Step title="Review Overdue Details">
+    For each overdue item, check:
+    - How many days overdue (calculate from dueDate)
+    - Amount still owed
+    - Borrower's contact information
+    - Payment history (any partial payments?)
+  </Step>
+
+  <Step title="Contact the Borrower">
+    Use the contact information from the union member profile:
+    - Phone number
+    - Address
+    - Alternative contact
+
+    <Tip>
+    Document all contact attempts in the loan notes for audit purposes.
+    </Tip>
+  </Step>
+
+  <Step title="Record Late Payment">
+    When the borrower pays:
+    1. Record the repayment normally (see [Recording a New Repayment](#recording-a-new-repayment))
+    2. Payment automatically goes to overdue items first
+    3. Schedule item changes from OVERDUE to PAID or PARTIAL
+    4. Overdue count decreases
+
+    <Note>
+    The system prioritizes overdue items automatically. You don't need to manually specify which schedule item to pay.
+    </Note>
+  </Step>
+
+  <Step title="Apply Penalties (If Configured)">
+    If your organization charges late fees:
+    - Check the loan's `penaltyFeePerDayAmount` (schema.prisma:250)
+    - Calculate days overdue × penalty per day
+    - Add penalty as a fee or adjust the schedule item
+
+    <Warning>
+    Penalty fee handling may require admin/supervisor approval depending on your organization's policies.
+    </Warning>
+  </Step>
+</Steps>
+
+## Viewing Repayment History
+
+### For All Loans
+
+<Steps>
+  <Step title="Access Repayments List">
+    Go to **Business Management** → **Repayments**
+  </Step>
+
+  <Step title="Apply Filters">
+    Filter by:
+    - **Date range**: Payments in a specific period
+    - **Loan**: Specific loan's payments
+    - **Payment method**: All CASH payments, etc.
+    - **Received by**: Which staff member recorded it
+  </Step>
+
+  <Step title="View Details">
+    Click on any repayment to see:
+    - Full payment details
+    - Allocation breakdown (which schedule items were paid)
+    - Original loan information
+    - Recorded by whom and when
+  </Step>
+</Steps>
+
+Refer to repayment.controller.ts:28-58 for the API that retrieves repayment lists.
+
+### For a Specific Loan
+
+<Steps>
+  <Step title="Open the Loan">
+    Navigate to the loan details page.
+  </Step>
+
+  <Step title="Scroll to Payment History">
+    The loan detail page includes:
+    - **Repayment Schedule** section: All scheduled payments
+    - **Payment History** section: All repayments made
+  </Step>
+
+  <Step title="Analyze Payment Pattern">
+    Review:
+    - Total payments made so far
+    - Payment dates and amounts
+    - Payment methods used
+    - Outstanding balance
+    - On-time payment percentage
+  </Step>
+</Steps>
+
+## Generating Repayment Reports
+
+Use the repayment summary and collections reports.
+
+### Repayment Summary
+
+Get aggregate statistics:
+- Total repayments in a date range
+- Total amount collected
+- Breakdown by payment method
+- Collection rate
+
+API: `GET /api/repayments/summary` (repayment.controller.ts:225-252)
+
+### Collections by Union
+
+See how much each union has repaid:
+- Filter by date range
+- Filter by credit officer
+- Compare union performance
+
+API: `GET /api/repayments/collections-by-union` (repayment.controller.ts:254-282)
+
+<Tip>
+These reports feed into the supervisor dashboard. See [Reporting & Analytics Guide](/guides/reporting-analytics) for more details.
+</Tip>
+
+## Editing or Deleting Repayments
+
+### Editing a Repayment
+
+<Warning>
+**Use with caution.** Editing repayments affects schedule allocations and loan balances.
+</Warning>
+
+<Steps>
+  <Step title="Locate the Repayment">
+    Find the repayment in the repayments list.
+  </Step>
+
+  <Step title="Open Edit Mode">
+    Click the **Edit** icon next to the repayment.
+  </Step>
+
+  <Step title="Modify Details">
+    You can change:
+    - Amount (will trigger re-allocation)
+    - Payment date
+    - Payment method
+    - Reference number
+    - Notes
+
+    <Note>
+    Changing the amount will recalculate all allocations and update schedule items accordingly.
+    </Note>
+  </Step>
+
+  <Step title="Save Changes">
+    Click **"Save Changes"** to apply modifications.
+  </Step>
+</Steps>
+
+### Deleting a Repayment
+
+<Warning>
+**Requires Admin privileges.** Deleting repayments should only be done to correct errors.
+</Warning>
+
+1. Only Admins can delete repayments (repayment.controller.ts:115-141)
+2. Deletion removes the repayment record
+3. Allocations are reversed
+4. Schedule items revert to previous status
+5. Loan balance is adjusted
+
+<Tip>
+Instead of deleting, consider editing the repayment to correct the error. Deletion should be a last resort.
+</Tip>
+
+## API Reference
+
+For developers integrating with the repayment system:
+
+- [Create Repayment API](/api/repayments/create)
+- [Get Repayment Schedules API](/api/repayments/list)
+- [Repayment Summary API](/api/repayments/list)
+
+## Related Features
+
+- [Loan Processing](/guides/loan-processing) - Create and approve loans
+- [Reporting & Analytics](/guides/reporting-analytics) - Collection reports
+- [User Management](/guides/user-management) - Manage Credit Officers
+
+## Best Practices
+
+<Tip>
+**Recording Tips:**
+- Record payments on the actual payment date, not the due date
+- Always include reference numbers for non-cash payments
+- Add notes for unusual situations or partial payments
+- Double-check amounts before submitting
+- Record payments daily to keep data current
+</Tip>
+
+<Warning>
+**Common Mistakes to Avoid:**
+- Recording future-dated payments (use actual payment date)
+- Forgetting to select the correct payment method
+- Not documenting partial payment arrangements
+- Deleting repayments instead of editing to fix errors
+- Recording payments to the wrong loan (double-check borrower name)
+</Warning>
+
+<Note>
+**Payment Method Accuracy:** Accurate payment method recording is essential for:
+- Bank reconciliation
+- Cash management
+- Fraud prevention
+- Audit compliance
+</Note>

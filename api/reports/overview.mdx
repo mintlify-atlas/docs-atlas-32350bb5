@@ -1,0 +1,55 @@
+---
+title: Reports Overview
+description: Supervisor reports and analytics endpoints for the Millennium Potters API
+---
+
+The Reports API provides endpoints for supervisors and administrators to access aggregated data, generate reports, and view analytics across their teams.
+
+## Available Endpoints
+
+### Dashboard & Analytics
+
+<Card title="GET /api/supervisor-reports/dashboard" icon="chart-line" href="/api/reports/analytics">
+  Get real-time dashboard data with aggregated metrics, officer performance, and trends.
+</Card>
+
+### Report Generation
+
+<Card title="POST /api/supervisor-reports/generate" icon="file-chart-line" href="/api/reports/supervisor#generate-report">
+  Generate and save a report session for a specific period.
+</Card>
+
+### Report Sessions
+
+<Card title="GET /api/supervisor-reports/sessions" icon="folder" href="/api/reports/supervisor#list-report-sessions">
+  Retrieve all saved report sessions with pagination.
+</Card>
+
+<Card title="GET /api/supervisor-reports/sessions/:id" icon="file" href="/api/reports/supervisor#get-report-session">
+  Get a specific report session by ID.
+</Card>
+
+<Card title="DELETE /api/supervisor-reports/sessions/:id" icon="trash" href="/api/reports/supervisor#delete-report-session">
+  Delete a report session.
+</Card>
+
+### Credit Officers
+
+<Card title="GET /api/supervisor-reports/officers" icon="users" href="/api/reports/supervisor#list-credit-officers">
+  Get all credit officers under a supervisor.
+</Card>
+
+## Authentication
+
+All report endpoints require authentication and specific role permissions:
+- **SUPERVISOR**: Can access their own team's data
+- **ADMIN**: Can access any supervisor's data by providing `supervisorId` parameter
+
+## Common Response Structure
+
+All endpoints return JSON responses with appropriate HTTP status codes:
+- `200`: Success
+- `400`: Bad request (missing or invalid parameters)
+- `401`: Unauthorized (missing or invalid token)
+- `403`: Forbidden (insufficient permissions)
+- `500`: Internal server error

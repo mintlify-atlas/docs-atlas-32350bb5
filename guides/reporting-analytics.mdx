@@ -1,0 +1,566 @@
+---
+title: 'Reporting & Analytics Guide'
+description: 'Complete guide to accessing supervisor reports, understanding dashboard metrics, and generating performance analytics'
+---
+
+## Overview
+
+By the end of this guide, you will understand how to access supervisor reports, interpret dashboard metrics, generate custom reports, export data for analysis, and track key performance indicators (KPIs) for your microfinance operations.
+
+<Note>
+Reporting features are primarily designed for Supervisors and Admins. Credit Officers have limited reporting access focused on their own portfolio.
+</Note>
+
+## Understanding the Dashboard
+
+The dashboard is your command center for real-time metrics.
+
+### Dashboard Access
+
+<Steps>
+  <Step title="Navigate to Dashboard">
+    After logging in, click **"Dashboard"** in the sidebar.
+
+    This is also your default landing page after login.
+  </Step>
+
+  <Step title="View Summary Cards">
+    The dashboard displays key metrics at a glance:
+
+    | Card | Metric | Description |
+    |------|--------|-------------|
+    | **Total Loans** | Count | All loans in the system |
+    | **Active Loans** | Count | Loans currently being repaid (status = ACTIVE) |
+    | **Total Disbursed** | Amount | Total money lent out this period |
+    | **Total Repaid** | Amount | Total repayments collected |
+    | **Outstanding Balance** | Amount | Total amount still owed |
+    | **Collection Rate** | Percentage | Repayment performance metric |
+    | **Overdue Loans** | Count | Loans with overdue payments |
+    | **Pending Approvals** | Count | Loans awaiting supervisor approval |
+
+    <Tip>
+    Cards update in real-time as data changes. Refresh the page to see the latest numbers.
+    </Tip>
+  </Step>
+
+  <Step title="Review Recent Activity">
+    Below the summary cards, you'll see:
+    - **Recent Loans**: Latest loan applications
+    - **Recent Repayments**: Latest payments recorded
+    - **Upcoming Due Dates**: Payments due soon
+    - **Alerts**: Overdue accounts or pending actions
+  </Step>
+
+  <Step title="Access Quick Actions">
+    The dashboard includes shortcuts to common tasks:
+    - Create New Loan
+    - Record Repayment
+    - Add Union Member
+    - Generate Report
+  </Step>
+</Steps>
+
+## Accessing Supervisor Reports
+
+Supervisor reports provide comprehensive analytics for managing your team.
+
+### Prerequisites
+
+- Must be logged in as a **Supervisor** or **Admin**
+- Supervisors see reports for their Credit Officers
+- Admins can view any supervisor's reports
+
+### Supervisor Dashboard
+
+<Steps>
+  <Step title="Navigate to Reports">
+    From the sidebar:
+    1. Click **"Reports"**
+    2. Click **"Supervisor Reports"**
+
+    Or use the API: `GET /api/supervisor-reports/dashboard` (supervisor-reports.controller.ts:10-45)
+  </Step>
+
+  <Step title="Select Time Period">
+    Choose the reporting period:
+
+    | Period | Description | Use Case |
+    |--------|-------------|----------|
+    | **Today** | Current day only | Daily operations review |
+    | **This Week** | Current week to date | Weekly performance check |
+    | **This Month** | Current month to date | Monthly reporting |
+    | **Custom Range** | Select start and end dates | Specific period analysis |
+
+    Parameters:
+    - `periodStart`: Start date (YYYY-MM-DD)
+    - `periodEnd`: End date (YYYY-MM-DD)
+
+    <Note>
+    If you don't specify a period, the system defaults to the current month (supervisor-reports.controller.ts:25-30).
+    </Note>
+  </Step>
+
+  <Step title="Review Dashboard Metrics">
+    The supervisor dashboard shows:
+
+    ### Team Overview
+    - **Total Officers**: Number of Credit Officers under you
+    - **Total Unions**: All unions managed by your team
+    - **Total Members**: All union members in your territory
+
+    ### Loan Portfolio
+    - **Total Loans**: All loans in the period
+    - **Active Loans**: Currently being repaid
+    - **Completed Loans**: Fully repaid
+    - **Defaulted Loans**: Problem accounts
+
+    ### Financial Metrics
+    - **Total Disbursed**: Money lent out
+    - **Total Repaid**: Money collected
+    - **Total Outstanding**: Money still owed
+    - **Collection Rate**: Repayment performance percentage
+
+    Refer to schema.prisma:608-620 for the ReportSession model that stores these metrics.
+  </Step>
+
+  <Step title="Drill Down into Officer Performance">
+    View individual Credit Officer performance:
+    - Loans created per officer
+    - Repayments collected per officer
+    - Active clients per officer
+    - Collection rate per officer
+
+    This data is stored in the `officerMetrics` JSON field (schema.prisma:626).
+  </Step>
+</Steps>
+
+## Generating Report Sessions
+
+Save reports for historical comparison and documentation.
+
+<Steps>
+  <Step title="Access Report Generation">
+    From the Supervisor Reports page, click **"Generate Report"** or **"Save Report"**.
+  </Step>
+
+  <Step title="Configure Report Parameters">
+    Fill in the report configuration:
+
+    | Field | Description | Required | Options |
+    |-------|-------------|----------|--------|
+    | **Report Type** | Type of report | ✅ Yes | DAILY, WEEKLY, MONTHLY, QUARTERLY, CUSTOM |
+    | **Period Start** | Start date | ✅ Yes | Date (YYYY-MM-DD) |
+    | **Period End** | End date | ✅ Yes | Date (YYYY-MM-DD) |
+    | **Title** | Report name | Optional | Text (e.g., "March 2026 Performance") |
+    | **Supervisor** | For admins: which supervisor | Optional | Supervisor ID |
+
+    <Warning>
+    The report type must be one of the valid ReportType enum values (schema.prisma:590-596): DAILY, WEEKLY, MONTHLY, QUARTERLY, or CUSTOM.
+    </Warning>
+  </Step>
+
+  <Step title="Generate the Report">
+    Click **"Generate Report"** to create the report session.
+
+    API: `POST /api/supervisor-reports/generate` (supervisor-reports.controller.ts:51-99)
+
+    The system:
+    1. Calculates all metrics for the period
+    2. Takes a snapshot of current data
+    3. Stores officer performance breakdown
+    4. Saves the report session to the database
+  </Step>
+
+  <Step title="View Generated Report">
+    After generation, you can:
+    - View the report immediately
+    - Access it later from report history
+    - Export it to various formats
+    - Share it with stakeholders
+
+    <Tip>
+    Generated reports are saved with a timestamp (`generatedAt`) so you can track when each report was created (schema.prisma:628).
+    </Tip>
+  </Step>
+</Steps>
+
+## Viewing Report History
+
+Access all previously generated reports.
+
+<Steps>
+  <Step title="Navigate to Report Sessions">
+    Go to **Reports** → **Supervisor Reports** → **Report History**.
+
+    API: `GET /api/supervisor-reports/sessions` (supervisor-reports.controller.ts:105-136)
+  </Step>
+
+  <Step title="Browse Saved Reports">
+    The report history shows:
+    - Report title
+    - Report type (DAILY, WEEKLY, MONTHLY, etc.)
+    - Period covered (start and end dates)
+    - Generated date/time
+    - Key metrics snapshot
+
+    The list is paginated:
+    - Default: 10 reports per page
+    - Adjust with `page` and `limit` parameters
+  </Step>
+
+  <Step title="Open a Specific Report">
+    Click on any report to view full details.
+
+    API: `GET /api/supervisor-reports/sessions/:id` (supervisor-reports.controller.ts:142-170)
+
+    The report includes:
+    - All metrics at time of generation
+    - Officer performance breakdown
+    - Complete report data in JSON format (`reportData` field)
+  </Step>
+
+  <Step title="Delete Old Reports (Optional)">
+    Remove reports you no longer need:
+
+    API: `DELETE /api/supervisor-reports/sessions/:id` (supervisor-reports.controller.ts:176-211)
+
+    <Note>
+    Only the report owner or an Admin can delete reports. This prevents accidental deletion of important historical data.
+    </Note>
+  </Step>
+</Steps>
+
+## Key Performance Indicators (KPIs)
+
+### Collection Rate
+
+The most important metric for loan portfolio health.
+
+**Formula:**
+```
+Collection Rate = (Total Repaid / Total Due) × 100%
+```
+
+**Interpretation:**
+- **90-100%**: Excellent performance
+- **80-89%**: Good performance
+- **70-79%**: Needs attention
+- **Below 70%**: Critical - investigate immediately
+
+<Tip>
+Track collection rate over time to identify trends. A declining collection rate may indicate:
+- Economic challenges in the community
+- Need for better member screening
+- Issues with specific Credit Officers
+- Problems with specific unions
+</Tip>
+
+### Portfolio at Risk (PAR)
+
+Measures the portion of your portfolio that's overdue.
+
+**What to Track:**
+- Number of overdue loans
+- Total overdue amount
+- Percentage of portfolio overdue
+- Days overdue distribution
+
+**Action Thresholds:**
+- 1-7 days: Friendly reminder
+- 8-30 days: Formal follow-up
+- 31-90 days: Intensive collection
+- 90+ days: Default procedures
+
+### Officer Performance Metrics
+
+Track individual Credit Officer performance:
+
+| Metric | What to Track | Benchmark |
+|--------|---------------|----------|
+| **Loans Created** | Number per month | Depends on territory |
+| **Disbursement Amount** | Total disbursed | Aligns with targets |
+| **Collection Rate** | Officer's collection percentage | Above 85% |
+| **Active Clients** | Members with active loans | Growing steadily |
+| **Overdue Rate** | Percentage of officer's loans overdue | Below 10% |
+
+<Note>
+The `officerMetrics` JSON field in ReportSession (schema.prisma:626) stores per-officer breakdowns for comparison.
+</Note>
+
+### Union Performance
+
+Compare performance across unions:
+- Repayment rates by union
+- Active loans per union
+- Average loan size per union
+- Growth trends per union
+
+Use the Collections by Union API (repayment.controller.ts:254-282) to get this data.
+
+## Export Capabilities
+
+### Exporting User Lists
+
+Export user data for external analysis.
+
+<Steps>
+  <Step title="Navigate to Users">
+    Go to **User Management** → **Users**.
+  </Step>
+
+  <Step title="Apply Filters">
+    Filter the user list by:
+    - Role
+    - Active status
+    - Supervisor
+    - Search terms
+  </Step>
+
+  <Step title="Click Export">
+    Click the **"Export"** button.
+
+    API: `GET /api/users/export` (user.controller.ts:244-257)
+  </Step>
+
+  <Step title="Choose Format">
+    Select export format:
+    - **CSV**: For Excel/Google Sheets
+    - **Excel**: XLSX format
+    - **JSON**: For programmatic use
+  </Step>
+
+  <Step title="Download File">
+    The file downloads to your computer with:
+    - All filtered user data
+    - Standard fields (name, email, role, etc.)
+    - Timestamps and activity data
+  </Step>
+</Steps>
+
+### Exporting Loan Data
+
+Similar process for loans:
+1. Navigate to **Business Management** → **Loans**
+2. Apply desired filters (status, union, date range)
+3. Click **"Export"**
+4. Choose format (CSV, Excel)
+5. Download file
+
+### Exporting Repayment Data
+
+Export repayment history:
+1. Go to **Business Management** → **Repayments**
+2. Filter by date range, loan, payment method
+3. Click **"Export"**
+4. Select format
+5. Download
+
+<Tip>
+**Export Best Practices:**
+- Apply filters before exporting to get exactly what you need
+- Use date ranges to limit file size
+- Export regularly for backup purposes
+- Store exports securely (they contain sensitive data)
+</Tip>
+
+## Understanding Report Data
+
+### Cached Metrics
+
+Report sessions store cached metrics at generation time (schema.prisma:608-620):
+
+```typescript
+totalOfficers: Int
+totalUnions: Int
+totalMembers: Int
+totalLoans: Int
+activeLoans: Int
+completedLoans: Int
+defaultedLoans: Int
+totalDisbursed: Decimal
+totalRepaid: Decimal
+totalOutstanding: Decimal
+collectionRate: Decimal
+```
+
+**Why cache?**
+- Historical accuracy: Shows data as it was at report time
+- Performance: Fast retrieval without recalculation
+- Comparison: Compare reports from different periods
+
+### Report Data JSON
+
+The `reportData` field (schema.prisma:623) contains:
+- Detailed breakdown of all metrics
+- Union-level performance
+- Loan portfolio composition
+- Repayment trends
+- Any custom analytics
+
+<Note>
+This JSON structure is flexible and can be extended with custom metrics specific to your organization's needs.
+</Note>
+
+## Viewing Credit Officers (Supervisors)
+
+Supervisors can see their team of Credit Officers.
+
+<Steps>
+  <Step title="Access Credit Officers List">
+    Go to **Reports** → **Supervisor Reports** → **Credit Officers**.
+
+    API: `GET /api/supervisor-reports/officers` (supervisor-reports.controller.ts:217-244)
+  </Step>
+
+  <Step title="View Officer Details">
+    The list shows each Credit Officer:
+    - Name and contact information
+    - Number of unions managed
+    - Number of active loans
+    - Collection performance
+    - Last activity timestamp
+  </Step>
+
+  <Step title="Drill Down into Officer Performance">
+    Click on an officer to see:
+    - Detailed loan portfolio
+    - Union assignments
+    - Repayment history
+    - Performance trends over time
+  </Step>
+</Steps>
+
+<Tip>
+Use this view to identify high-performing officers and those who may need additional training or support.
+</Tip>
+
+## Admin Access to Reports
+
+Admins have special reporting privileges.
+
+### Viewing Any Supervisor's Reports
+
+Admins can view reports for any supervisor:
+
+1. Add `supervisorId` parameter to API calls
+2. Or select supervisor from dropdown in UI
+3. View that supervisor's dashboard and reports
+
+Example API calls:
+- `GET /api/supervisor-reports/dashboard?supervisorId=SUPERVISOR_ID`
+- `GET /api/supervisor-reports/sessions?supervisorId=SUPERVISOR_ID`
+
+Refer to supervisor-reports.controller.ts:20-23 for admin override logic.
+
+### System-Wide Reports
+
+Admins can generate organization-wide reports:
+- All loans across all supervisors
+- Company-wide collection rates
+- Complete loan portfolio health
+- Cross-supervisor comparisons
+
+<Note>
+System-wide reporting may require custom queries or aggregations beyond the standard supervisor reports.
+</Note>
+
+## Filtering and Date Ranges
+
+### Date Range Selection
+
+Most reports support flexible date ranges:
+
+| Option | Description | Parameters |
+|--------|-------------|------------|
+| **Today** | Current day only | `dateFrom=today, dateTo=today` |
+| **This Week** | Monday to today | Calculate week start/end |
+| **This Month** | First of month to today | Calculate month start/end |
+| **Last 30 Days** | Rolling 30-day window | `dateFrom=30 days ago, dateTo=today` |
+| **Custom Range** | Any start and end dates | Specify both dates |
+
+<Tip>
+Use rolling date ranges (e.g., "Last 30 Days") for consistent period-over-period comparisons.
+</Tip>
+
+### Advanced Filtering
+
+Combine multiple filters for precise reporting:
+- Date range + specific officer
+- Union + status + date range
+- Payment method + date range
+
+## API Reference
+
+For developers building custom reports:
+
+- [Supervisor Dashboard API](/api/reports/supervisor)
+- [Generate Report API](/api/reports/supervisor)
+- [Report Sessions API](/api/reports/supervisor)
+- [Repayment Summary API](/api/repayments/list)
+
+## Related Features
+
+- [User Management](/guides/user-management) - Manage supervisors and officers
+- [Loan Processing](/guides/loan-processing) - Understand loan data in reports
+- [Repayment Tracking](/guides/repayment-tracking) - Collection metrics source
+
+## Best Practices
+
+<Tip>
+**Reporting Best Practices:**
+- Generate reports at consistent intervals (weekly, monthly)
+- Compare current period to previous period
+- Save important reports for historical reference
+- Share reports with stakeholders regularly
+- Use exports for board meetings and compliance
+- Set up a reporting schedule and stick to it
+</Tip>
+
+<Warning>
+**Common Mistakes to Avoid:**
+- Not specifying date ranges (leads to incomplete data)
+- Comparing reports from different period lengths
+- Ignoring early warning signs in metrics
+- Forgetting to save important reports
+- Not drilling down when metrics look unusual
+- Exporting without applying necessary filters
+</Warning>
+
+<Note>
+**Data Privacy:** Reports contain sensitive financial information. Always:
+- Secure exported files with passwords
+- Only share reports with authorized personnel
+- Follow your organization's data privacy policies
+- Delete old exports from unsecured locations
+</Note>
+
+## Metrics Glossary
+
+| Term | Definition |
+|------|------------|
+| **Collection Rate** | Percentage of expected repayments actually collected |
+| **Outstanding Balance** | Total amount still owed on active loans |
+| **Portfolio at Risk** | Loans that are overdue |
+| **Disbursement** | Money lent out to borrowers |
+| **Default** | Loan where borrower stopped paying |
+| **Write-off** | Uncollectible loan removed from active portfolio |
+| **Active Loans** | Loans currently in repayment (status = ACTIVE) |
+| **Completed Loans** | Loans fully repaid (status = COMPLETED) |
+
+## Troubleshooting Reports
+
+### "No data available"
+- Check your date range - may be too narrow
+- Verify you have loans/repayments in that period
+- Ensure you have permission to view the data
+
+### "Collection rate seems wrong"
+- Verify all repayments are recorded
+- Check for partial payments not fully allocated
+- Ensure schedule items are up to date
+
+### "Can't generate report"
+- Verify you're logged in as Supervisor or Admin
+- Check that start date is before end date
+- Ensure reportType is valid
+- Contact support if issue persists

@@ -1,0 +1,142 @@
+---
+title: 'Delete Union Member'
+openapi: 'DELETE /api/union-members/:id'
+---
+
+Soft deletes a union member by setting their `deletedAt` timestamp. Members with active loans cannot be deleted.
+
+## Authorization
+
+Requires authentication with one of the following roles:
+- **Admin**: Can delete any member
+- **Supervisor**: Can delete members in unions managed by their credit officers
+- **Credit Officer**: Can delete members in their assigned unions only
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the union member to delete
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the deletion was successful
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success or error message
+</ResponseField>
+
+## Deletion Rules
+
+- **Soft Delete**: The member is not permanently removed. Instead, the `deletedAt` field is set to the current timestamp.
+- **Active Loans Check**: Members with active loans (where `deletedAt` is `null`) cannot be deleted. You must resolve all loans first.
+- **Permission-Based**: Users can only delete members they have permission to manage based on their role.
+
+## Error Scenarios
+
+<AccordionGroup>
+  <Accordion title="Member Has Active Loans">
+    If the member has any active loans, the deletion will fail with a 400 error:
+    ```json
+    {
+      "success": false,
+      "message": "Cannot delete member with active loans. Please resolve loans first."
+    }
+    ```
+    You must complete, cancel, or otherwise resolve all loans before deleting the member.
+  </Accordion>
+  
+  <Accordion title="Member Not Found">
+    If the member ID doesn't exist or the member is already deleted:
+    ```json
+    {
+      "success": false,
+      "message": "Union member not found"
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Permission Denied">
+    If the user doesn't have permission to delete this member:
+    ```json
+    {
+      "success": false,
+      "message": "Credit officers can only delete members from their unions"
+    }
+    ```
+    Or for supervisors:
+    ```json
+    {
+      "success": false,
+      "message": "You can only delete members under your supervision"
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+<RequestExample>
+```bash cURL
+curl -X DELETE "https://api.example.com/api/union-members/clx123abc" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch(
+  'https://api.example.com/api/union-members/clx123abc',
+  {
+    method: 'DELETE',
+    headers: {
+      'Authorization': 'Bearer YOUR_TOKEN'
+    }
+  }
+);
+const data = await response.json();
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Success
+{
+  "success": true,
+  "message": "Union member deleted successfully"
+}
+```
+
+```json 400 Bad Request - Has Active Loans
+{
+  "success": false,
+  "message": "Cannot delete member with active loans. Please resolve loans first."
+}
+```
+
+```json 404 Not Found
+{
+  "success": false,
+  "message": "Union member not found"
+}
+```
+
+```json 400 Bad Request - Permission Denied
+{
+  "success": false,
+  "message": "Credit officers can only delete members from their unions"
+}
+```
+
+```json 401 Unauthorized
+{
+  "success": false,
+  "message": "Unauthorized"
+}
+```
+</ResponseExample>
+
+<Info>
+  **Soft Delete**: Deleted members are not permanently removed from the database. They can potentially be restored by updating their `deletedAt` field to `null` through direct database access if needed.
+</Info>
+
+<Warning>
+  **Data Integrity**: Always ensure all related loans are resolved before attempting to delete a member to maintain data integrity and avoid errors.
+</Warning>

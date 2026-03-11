@@ -1,0 +1,479 @@
+---
+title: "Unions"
+description: "Manage groups of members organized by location, community, or credit officer"
+icon: "users-rectangle"
+---
+
+## What are Unions?
+
+Unions are organizational groups that contain union members who share a common identity, location, or are managed by the same credit officer. Every union is assigned to a specific credit officer who manages its members and loan operations.
+
+<Info>
+  Unions must be created before adding members. Each union is tied to one credit officer.
+</Info>
+
+## Union Data Model
+
+Based on the Prisma schema, the Union model contains:
+
+```prisma
+model Union {
+  id              String   @id @default(cuid())
+  name            String
+  location        String?
+  address         String?
+  creditOfficerId String   // Required: Credit Officer assignment
+  
+  // Relations
+  creditOfficer   User     @relation("OfficerUnions")
+  unionMembers    UnionMember[]
+  loans           Loan[]
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // Soft delete support
+}
+```
+
+### Key Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | String | Yes | Unique identifier (auto-generated) |
+| `name` | String | Yes | Union name (must be unique) |
+| `location` | String | No | Geographic location or area |
+| `address` | String | No | Physical address details |
+| `creditOfficerId` | String | Yes | Assigned credit officer ID |
+| `deletedAt` | DateTime | No | Soft delete timestamp |
+
+## Viewing All Unions
+
+Access the unions list from the sidebar:
+
+<Steps>
+  <Step title="Navigate">
+    Click **Business Management** → **Unions**
+  </Step>
+  <Step title="View List">
+    See all unions you have permission to access
+  </Step>
+</Steps>
+
+### List Features
+
+<CardGroup cols={2}>
+  <Card title="Search" icon="magnifying-glass">
+    Type union name in the search box to filter results
+  </Card>
+  <Card title="Filter" icon="filter">
+    Filter by credit officer or status (Active/Inactive)
+  </Card>
+  <Card title="Sort" icon="arrow-down-wide-short">
+    Click column headers to sort by name, officer, or date
+  </Card>
+  <Card title="Export" icon="download">
+    Download union list as CSV or Excel
+  </Card>
+</CardGroup>
+
+### Role-Based Access
+
+<Accordion title="Administrator">
+  Can view and manage **all unions** in the system
+</Accordion>
+
+<Accordion title="Supervisor">
+  Can view unions assigned to **credit officers under their supervision**
+</Accordion>
+
+<Accordion title="Credit Officer">
+  Can only view and manage **their own assigned unions**
+</Accordion>
+
+## Creating a New Union
+
+<Steps>
+  <Step title="Start Creation">
+    Go to the Unions page and click **+ Add Union** button (top right)
+  </Step>
+  
+  <Step title="Fill Required Fields">
+    **Required:**
+    - **Union Name** - Enter a unique, descriptive name
+    - **Credit Officer** - Select the officer who will manage this union
+    
+    **Optional:**
+    - **Location** - Geographic area or region
+    - **Address** - Physical address or meeting place
+  </Step>
+  
+  <Step title="Save">
+    Click **Create Union** to save
+  </Step>
+</Steps>
+
+### Field Guidelines
+
+<Note>
+  **Union Name Best Practices:**
+  - Use clear, descriptive names (e.g., "Market Women Group", "Potters Association Zone A")
+  - Avoid duplicate names
+  - Include location if helpful (e.g., "Lagos Traders Union")
+</Note>
+
+### API Endpoint
+
+```typescript
+// POST /api/unions
+const createUnion = async (data: {
+  name: string;
+  creditOfficerId: string;
+  location?: string;
+  address?: string;
+}) => {
+  // Creates new union and assigns to officer
+}
+```
+
+## Viewing Union Details
+
+Click any union in the list to view:
+
+<CardGroup cols={2}>
+  <Card title="Basic Information" icon="info-circle">
+    - Union name
+    - Location and address
+    - Assigned credit officer
+    - Creation date
+  </Card>
+  
+  <Card title="Member Statistics" icon="users">
+    - Total members count
+    - Active members
+    - Recent additions
+  </Card>
+  
+  <Card title="Loan Portfolio" icon="credit-card">
+    - Total loans issued
+    - Active loans
+    - Outstanding balance
+  </Card>
+  
+  <Card title="Performance" icon="chart-line">
+    - Collection rate
+    - Overdue loans
+    - Repayment trends
+  </Card>
+</CardGroup>
+
+## Editing a Union
+
+<Warning>
+  Only Administrators and Supervisors can edit union details
+</Warning>
+
+<Steps>
+  <Step title="Find Union">
+    Locate the union in the list
+  </Step>
+  
+  <Step title="Open Editor">
+    Click the **Edit** icon (pencil) in the Actions column
+  </Step>
+  
+  <Step title="Update Fields">
+    Modify the information as needed:
+    - Change name
+    - Update location/address
+    - Reassign credit officer (see below)
+  </Step>
+  
+  <Step title="Save Changes">
+    Click **Save Changes** to update
+  </Step>
+</Steps>
+
+## Reassigning Credit Officers
+
+<Info>
+  When reassigning a union to a different officer, all members automatically move with the union
+</Info>
+
+### Reassignment Process
+
+<Steps>
+  <Step title="Access Reassignment">
+    From union details or list, click **Reassign Officer**
+  </Step>
+  
+  <Step title="Select New Officer">
+    Choose the new credit officer from the dropdown
+  </Step>
+  
+  <Step title="Add Reason">
+    Provide a reason for the reassignment (optional but recommended)
+  </Step>
+  
+  <Step title="Confirm">
+    Review the changes and click **Confirm Reassignment**
+  </Step>
+</Steps>
+
+### What Happens During Reassignment?
+
+1. **Union's creditOfficerId is updated** to the new officer
+2. **Assignment history is recorded** in `UnionAssignmentHistory`
+3. **All union members remain in the union**
+4. **All loans stay connected** to the union
+5. **New officer gains access** to all union data
+
+### Assignment History Tracking
+
+```prisma
+model UnionAssignmentHistory {
+  id              String   @id
+  unionId         String
+  oldOfficerId    String?
+  newOfficerId    String
+  changedByUserId String
+  reason          String?
+  changedAt       DateTime @default(now())
+}
+```
+
+<Accordion title="View Assignment History">
+  Each union details page shows a history log of all officer assignments with dates and reasons
+</Accordion>
+
+## Deleting a Union
+
+<Warning>
+  **You cannot delete a union that has:**
+  - Active members
+  - Active or pending loans
+  
+  Delete or reassign these first, or deactivate the union instead.
+</Warning>
+
+### Soft Delete Process
+
+<Steps>
+  <Step title="Locate Union">
+    Find the union in the list
+  </Step>
+  
+  <Step title="Delete Action">
+    Click the **Delete** icon (trash can) in the Actions column
+  </Step>
+  
+  <Step title="Confirm Deletion">
+    Review the confirmation popup and click **Confirm**
+  </Step>
+</Steps>
+
+<Info>
+  Unions are **soft deleted** (marked with `deletedAt` timestamp) rather than permanently removed, preserving historical data
+</Info>
+
+### Alternative: Deactivate
+
+Instead of deleting:
+1. Edit the union
+2. Mark as inactive
+3. This hides it from active lists while preserving data
+
+## Union-Related Operations
+
+### Adding Members to a Union
+
+See [Members documentation](/features/members) for details on creating members within a union.
+
+### Creating Loans for Union Members
+
+When creating a loan:
+1. Select the union first
+2. Then select a member from that union
+3. The loan is automatically associated with both
+
+See [Loans documentation](/features/loans) for complete workflow.
+
+## Search and Filters
+
+### Search Bar
+
+<Tip>
+  The search function looks for matches in union name and location fields
+</Tip>
+
+```typescript
+// Search example
+searchTerm: "market" 
+// Finds: "Market Women Group", "New Market Traders", etc.
+```
+
+### Filter by Credit Officer
+
+<Steps>
+  <Step title="Open Filter">
+    Click the filter dropdown
+  </Step>
+  <Step title="Select Officer">
+    Choose a credit officer from the list
+  </Step>
+  <Step title="Apply">
+    View only unions assigned to that officer
+  </Step>
+</Steps>
+
+### Filter by Status
+
+- **Active** - Shows all active unions
+- **Inactive** - Shows deactivated unions
+- **All** - Shows both active and inactive
+
+## Export Options
+
+<CardGroup cols={3}>
+  <Card title="CSV Export" icon="file-csv">
+    Download as comma-separated values
+    
+    Best for Excel or Google Sheets
+  </Card>
+  
+  <Card title="Excel Export" icon="file-excel">
+    Download as .xlsx file
+    
+    Includes formatting and headers
+  </Card>
+  
+  <Card title="Copy to Clipboard" icon="copy">
+    Copy data for pasting elsewhere
+    
+    Quick data sharing
+  </Card>
+</CardGroup>
+
+### Export Includes
+
+- Union name
+- Location and address
+- Assigned credit officer name
+- Member count
+- Loan statistics
+- Creation date
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Naming Conventions" icon="tag">
+    - Use consistent naming patterns
+    - Include location if managing multiple areas
+    - Avoid abbreviations that aren't clear
+    - Example: "Ikeja Market Women Union" not "IMW"
+  </Card>
+  
+  <Card title="Officer Assignment" icon="user-check">
+    - Assign unions to officers familiar with the area
+    - Balance workload across officers
+    - Consider geographic proximity
+    - Document reassignment reasons
+  </Card>
+  
+  <Card title="Data Management" icon="database">
+    - Keep location and address updated
+    - Review inactive unions periodically
+    - Archive old unions instead of deleting
+    - Maintain assignment history
+  </Card>
+  
+  <Card title="Performance Monitoring" icon="chart-bar">
+    - Track union-level metrics
+    - Compare performance across unions
+    - Identify high-performing groups
+    - Address struggling unions proactively
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Cannot create union">
+    **Possible causes:**
+    - Union name already exists
+    - Credit officer not selected
+    - Insufficient permissions (not Admin/Supervisor)
+    
+    **Solution:** Check name uniqueness and verify required fields
+  </Accordion>
+  
+  <Accordion title="Cannot delete union">
+    **Reason:** Union has active members or loans
+    
+    **Solution:** 
+    1. Reassign members to other unions
+    2. Close or cancel all loans
+    3. Or mark union as inactive instead
+  </Accordion>
+  
+  <Accordion title="Cannot see all unions">
+    **Reason:** Role-based access restrictions
+    
+    **Explanation:**
+    - Credit Officers only see their assigned unions
+    - Supervisors see unions of their team
+    - Only Admins see all unions
+  </Accordion>
+  
+  <Accordion title="Reassignment not working">
+    **Check:**
+    - You have Admin or Supervisor role
+    - New officer exists and is active
+    - You provided required information
+  </Accordion>
+</AccordionGroup>
+
+## API Reference
+
+### Endpoints
+
+```typescript
+// Get all unions
+GET /api/unions?page=1&limit=20&search=keyword&creditOfficerId=xxx
+
+// Get union by ID
+GET /api/unions/:id
+
+// Create union
+POST /api/unions
+Body: { name, creditOfficerId, location?, address? }
+
+// Update union
+PUT /api/unions/:id
+Body: { name?, location?, address?, creditOfficerId? }
+
+// Delete union (soft)
+DELETE /api/unions/:id
+
+// Reassign officer
+POST /api/unions/:unionId/assign
+Body: { creditOfficerId, reason? }
+
+// Export unions
+GET /api/unions/export?creditOfficerId=xxx&search=keyword
+```
+
+## Summary
+
+Unions provide:
+- ✅ Organizational structure for members
+- ✅ Credit officer assignment and management
+- ✅ Loan portfolio grouping
+- ✅ Performance tracking by group
+- ✅ Assignment history and audit trail
+- ✅ Role-based access control
+
+<Card title="Next Steps" icon="arrow-right">
+  - Add [Members](/features/members) to your unions
+  - Create [Loans](/features/loans) for union members
+  - Monitor [Reporting](/features/reporting) by union
+</Card>

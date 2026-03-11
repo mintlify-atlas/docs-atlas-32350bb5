@@ -1,0 +1,469 @@
+---
+title: 'Loan Processing Guide'
+description: 'Complete workflow for creating, approving, and disbursing loans in the Millenium Potters platform'
+---
+
+## Overview
+
+By the end of this guide, you will understand the complete loan lifecycle from creation through approval to disbursement. You'll learn how to create draft loans, submit them for approval, handle different loan statuses, and activate loans for repayment tracking.
+
+## Understanding Loan Statuses
+
+A loan moves through several stages during its lifecycle:
+
+| Status | Description | Who Can Set | Next Actions |
+|--------|-------------|-------------|-------------|
+| **DRAFT** | Just created, not yet submitted | Credit Officer | Edit or Submit for Approval |
+| **PENDING_APPROVAL** | Awaiting supervisor review | System (on submit) | Approve or Reject |
+| **APPROVED** | Approved by supervisor | Supervisor/Admin | Disburse |
+| **ACTIVE** | Disbursed and being repaid | System (on disburse) | Record repayments |
+| **COMPLETED** | All repayments made | System (automatic) | None - archived |
+| **DEFAULTED** | Borrower failed to repay | Admin | Collection or write-off |
+| **WRITTEN_OFF** | Removed from active portfolio | Admin | None - archived |
+| **CANCELED** | Application was canceled | Admin/Supervisor | None |
+
+Refer to backend/prisma/schema.prisma:25-34 for the complete `LoanStatus` enum.
+
+<Note>
+Status transitions are controlled by business logic. You cannot skip stages - for example, a DRAFT loan must go through PENDING_APPROVAL and APPROVED before being ACTIVE.
+</Note>
+
+## Creating a New Loan Application
+
+<Steps>
+  <Step title="Navigate to Loans Section">
+    From the sidebar:
+    1. Click **"Business Management"**
+    2. Click **"Loans"**
+    3. Click **"+ Add New Loan"** button in the top right
+  </Step>
+
+  <Step title="Select the Borrower">
+    Choose who will receive the loan:
+
+    1. **Select Union**: Choose from the dropdown of available unions
+       - Credit Officers only see unions assigned to them
+       - Admins and Supervisors see all unions
+
+    2. **Select Union Member**: Choose the borrower from the union
+       - Only verified members appear in this list (`isVerified = true`)
+       - If a member is missing, check their verification status
+
+    <Warning>
+    You cannot create a loan for a member who is not verified. Verify members first in the Union Members section.
+    </Warning>
+  </Step>
+
+  <Step title="Enter Loan Details">
+    Fill in all required loan information:
+
+    ### Required Fields
+
+    | Field | Description | Validation | Format |
+    |-------|-------------|------------|--------|
+    | **Loan Type** | Type of loan product | Required | Select from configured loan types |
+    | **Principal Amount** | Amount to lend | Required | Decimal, up to 14 digits |
+    | **Interest Rate** | Annual interest rate | Auto-filled from loan type | Percentage |
+    | **Term Count** | Loan duration | Required | Integer (1-999) |
+    | **Term Unit** | Duration unit | Required | DAY, WEEK, or MONTH |
+    | **Repayment Frequency** | How often payments are due | Required | Daily, Weekly, Monthly |
+    | **Start Date** | When loan begins | Required | Date (format: YYYY-MM-DD) |
+    | **Purpose** | Why the member needs the loan | Required | Text |
+
+    ### Optional Fields
+
+    - **Notes**: Additional information about the loan
+    - **Processing Fee**: May be auto-calculated based on loan type
+    - **End Date**: Usually calculated automatically
+
+    <Tip>
+    The interest rate is often pre-filled based on the selected Loan Type. Admins configure these defaults in **System Configuration** → **Loan Types**.
+    </Tip>
+  </Step>
+
+  <Step title="Review Repayment Schedule">
+    After entering loan details, the system automatically:
+    - Calculates the total amount to be repaid
+    - Generates the full repayment schedule
+    - Shows all due dates and amounts
+
+    Review this carefully:
+    - **Total Due**: Principal + Interest + Fees
+    - **Number of Installments**: Based on term and frequency
+    - **Due Dates**: When each payment is expected
+    - **Principal vs Interest**: Breakdown per payment
+
+    <Note>
+    The repayment schedule is generated using the RepaymentScheduleItem model (schema.prisma:282-308). Each installment tracks principal, interest, and fees separately.
+    </Note>
+  </Step>
+
+  <Step title="Save as Draft or Submit">
+    You have two options:
+
+    **Option 1: Save as Draft**
+    - Click **"Save as Draft"**
+    - Loan status is set to `DRAFT`
+    - You can edit it later before submitting
+    - Use this when you need to verify information
+
+    **Option 2: Submit for Approval**
+    - Click **"Submit for Approval"**
+    - Loan status changes to `PENDING_APPROVAL`
+    - It appears in your supervisor's approval queue
+    - You cannot edit it after submission (contact admin if needed)
+
+    <Warning>
+    Once submitted for approval, Credit Officers cannot edit the loan. If changes are needed, a Supervisor or Admin must reject it so you can modify and resubmit.
+    </Warning>
+  </Step>
+</Steps>
+
+## Required Field Validation
+
+The system validates loan data before saving:
+
+### Amount Validations
+- Principal amount must be positive
+- Must be within the min/max limits of the loan type
+- Format: Decimal with up to 14 digits, 2 decimal places
+
+### Date Validations
+- Start date cannot be in the past
+- End date must be after start date
+- Due dates are calculated based on frequency
+
+### Borrower Validations
+- Union member must exist in the system
+- Member must be verified (`isVerified = true`)
+- Member must belong to the selected union
+
+Refer to loan.controller.ts:6-24 for the creation logic.
+
+## Editing Draft Loans
+
+You can modify loans in `DRAFT` status before submission.
+
+<Steps>
+  <Step title="Find the Draft Loan">
+    1. Go to **Business Management** → **Loans**
+    2. Filter by status: **DRAFT**
+    3. Locate your loan in the list
+  </Step>
+
+  <Step title="Open Edit Mode">
+    Click the **Edit** icon (pencil) next to the loan.
+  </Step>
+
+  <Step title="Modify Details">
+    You can change:
+    - Principal amount
+    - Interest rate
+    - Term and frequency
+    - Start date
+    - Purpose and notes
+
+    <Note>
+    You cannot change the borrower (union member) after creation. To change the borrower, you must delete and recreate the loan.
+    </Note>
+  </Step>
+
+  <Step title="Save Changes">
+    - Click **"Save Changes"** to keep as draft
+    - Or click **"Submit for Approval"** to send for review
+  </Step>
+</Steps>
+
+## Approving or Rejecting Loans (Supervisors/Admins)
+
+Supervisors and Admins can review and approve loan applications.
+
+<Steps>
+  <Step title="View Pending Approvals">
+    1. Navigate to **Business Management** → **Loans**
+    2. Apply filter: **Status = PENDING_APPROVAL**
+    3. You'll see all loans awaiting your review
+
+    <Tip>
+    The dashboard also shows a count of pending approvals on the summary cards for quick access.
+    </Tip>
+  </Step>
+
+  <Step title="Review Loan Details">
+    Click on a loan to view:
+    - Borrower information and credit history
+    - Loan amount and terms
+    - Repayment schedule
+    - Purpose of the loan
+    - Created by which Credit Officer
+
+    Verify:
+    - Amount is reasonable for the member
+    - Terms align with loan type policies
+    - Member has capacity to repay
+  </Step>
+
+  <Step title="Approve the Loan">
+    If the loan looks good:
+    1. Click the **"Approve"** button
+    2. Add approval notes (optional but recommended)
+    3. Click **"Confirm Approval"**
+
+    Result:
+    - Loan status changes to `APPROVED`
+    - The loan is ready for disbursement
+    - The Credit Officer is notified
+  </Step>
+
+  <Step title="OR Reject the Loan">
+    If the loan needs revision:
+    1. Click the **"Reject"** button
+    2. Enter a reason for rejection (required)
+    3. Click **"Confirm Rejection"**
+
+    Result:
+    - Loan status changes to `REJECTED`
+    - The Credit Officer can see your reason
+    - They may need to create a new application
+
+    <Warning>
+    Always provide a clear rejection reason so the Credit Officer understands what needs to change.
+    </Warning>
+  </Step>
+</Steps>
+
+Refer to loan.controller.ts:100-130 for the status update logic.
+
+## Disbursing a Loan (Giving the Money)
+
+After approval, loans must be disbursed to activate them.
+
+<Steps>
+  <Step title="Filter for Approved Loans">
+    1. Go to **Business Management** → **Loans**
+    2. Filter: **Status = APPROVED**
+    3. Find the loan to disburse
+  </Step>
+
+  <Step title="Open Disburse Dialog">
+    1. Click on the loan to open details
+    2. Click the **"Disburse"** button
+    3. A disbursement form appears
+  </Step>
+
+  <Step title="Enter Disbursement Details">
+    Provide the following information:
+
+    | Field | Description | Required |
+    |-------|-------------|----------|
+    | **Disbursement Date** | When money was actually given | Optional (defaults to today) |
+    | **Payment Method** | How money was disbursed | CASH, TRANSFER, MOBILE, etc. |
+    | **Reference Number** | Transaction ID or check number | Optional |
+    | **Notes** | Additional disbursement notes | Optional |
+
+    <Note>
+    If you don't specify a disbursement date, the system uses the current date/time (loan.controller.ts:135-137).
+    </Note>
+  </Step>
+
+  <Step title="Confirm Disbursement">
+    Click **"Confirm Disbursement"** to complete.
+
+    Result:
+    - Loan status changes to `ACTIVE`
+    - The `disbursedAt` timestamp is recorded
+    - Repayment schedule becomes active
+    - The loan appears in the active loans list
+  </Step>
+</Steps>
+
+<Warning>
+**Important:** Disbursement cannot be undone. Ensure:
+- Money has actually been given to the borrower
+- All details are correct before confirming
+- You have proper documentation of the disbursement
+</Warning>
+
+## Viewing Loan Details
+
+Access comprehensive loan information at any time.
+
+<Steps>
+  <Step title="Open the Loan">
+    Click on any loan in the loans list to view full details.
+  </Step>
+
+  <Step title="Review Available Information">
+    The loan detail page shows:
+
+    **Loan Summary**
+    - Loan number (unique identifier)
+    - Current status
+    - Principal, interest, and total amounts
+    - Currency (default: NGN)
+
+    **Borrower Information**
+    - Union member name and details
+    - Union affiliation
+    - Contact information
+    - Verification status
+
+    **Repayment Schedule**
+    - All scheduled payments
+    - Due dates for each installment
+    - Principal and interest breakdown
+    - Payment status (PENDING, PAID, PARTIAL, OVERDUE)
+
+    **Payment History**
+    - All repayments made so far
+    - Payment dates and amounts
+    - Payment methods used
+    - Running balance
+
+    **Documents**
+    - Attached loan documents
+    - Member documents
+    - Verification documents
+
+    **Status History**
+    - Timeline of status changes
+    - Who made each change
+    - Timestamps for each transition
+  </Step>
+</Steps>
+
+Refer to loan.controller.ts:57-76 for the API that retrieves this information.
+
+## Understanding the Repayment Schedule
+
+The schedule shows all expected payments:
+
+| Column | Description | Source Field |
+|--------|-------------|-------------|
+| **Sequence** | Payment number (1, 2, 3...) | `sequence` |
+| **Due Date** | When payment is expected | `dueDate` |
+| **Principal Due** | Amount toward loan principal | `principalDue` |
+| **Interest Due** | Interest portion | `interestDue` |
+| **Fee Due** | Any applicable fees | `feeDue` |
+| **Total Due** | Total amount for this payment | `totalDue` |
+| **Paid Amount** | How much has been paid | `paidAmount` |
+| **Status** | PENDING, PAID, PARTIAL, OVERDUE | `status` (ScheduleStatus enum) |
+
+Schedule statuses (schema.prisma:42-47):
+- **PENDING**: Not yet paid, not overdue
+- **PARTIAL**: Partially paid but not complete
+- **PAID**: Fully paid
+- **OVERDUE**: Past due date and not paid
+
+<Tip>
+Use the schedule to track upcoming payments and identify overdue accounts. The system automatically updates schedule item statuses as repayments are recorded.
+</Tip>
+
+## Handling Different Loan Statuses
+
+### Active Loans
+- Status: `ACTIVE`
+- Action: Record repayments as they come in
+- See: [Repayment Tracking Guide](/guides/repayment-tracking)
+
+### Completed Loans
+- Status: `COMPLETED`
+- Automatic when all repayments are made
+- No further action needed
+- Loan is archived but remains in records
+
+### Defaulted Loans
+- Status: `DEFAULTED`
+- Requires admin intervention
+- Options: Collection actions or write-off
+- Can be set manually by Admin users
+
+### Canceled Loans
+- Status: `CANCELED`
+- For applications that won't proceed
+- Can only be set by Admin/Supervisor
+- Use instead of deleting
+
+<Warning>
+**Never delete loans with repayment history.** Use status changes instead:
+- Set to `CANCELED` for abandoned applications
+- Set to `WRITTEN_OFF` for uncollectible debts
+- Set to `DEFAULTED` for collection cases
+</Warning>
+
+## Assigning Loans to Officers
+
+Admins can reassign loans between Credit Officers.
+
+<Steps>
+  <Step title="Access Loan Assignment">
+    1. Open the loan details
+    2. Click **"Assign Loan"** or **"Reassign"**
+  </Step>
+
+  <Step title="Select New Officer">
+    1. Choose the new Credit Officer from the dropdown
+    2. Enter a reason for reassignment (optional)
+    3. Click **"Confirm Assignment"**
+  </Step>
+
+  <Step title="Verify Assignment">
+    The loan now appears in the new officer's portfolio.
+    - The `assignedOfficerId` field is updated
+    - Original creator (`createdByUserId`) remains unchanged
+  </Step>
+</Steps>
+
+Refer to loan.controller.ts:156-178 for the assignment logic.
+
+## Loan Filtering and Search
+
+Find loans quickly using filters:
+
+| Filter | Options | Use Case |
+|--------|---------|----------|
+| **Status** | Any LoanStatus value | Find all pending approvals |
+| **Union** | Union dropdown | See loans for specific union |
+| **Union Member** | Member dropdown | View a member's loan history |
+| **Search** | Text input | Search by borrower name or loan number |
+| **Date Range** | Start/End dates | Loans created in a period |
+| **Amount Range** | Min/Max | Find loans above/below certain amounts |
+
+<Tip>
+Combine filters for precise results. For example: Status=ACTIVE + Union=specific union + Date Range=this month.
+</Tip>
+
+## API Reference
+
+For developers integrating with the loan system:
+
+- [Create Loan API](/api/loans/create)
+- [Update Loan Status API](/api/loans/status)
+- [Loan Schedule API](/api/loans/list)
+
+## Related Features
+
+- [Repayment Tracking](/guides/repayment-tracking) - Record payments against loans
+- [User Management](/guides/user-management) - Manage Credit Officers and Supervisors
+- [Reporting & Analytics](/guides/reporting-analytics) - Loan portfolio reports
+- [Loan Types Configuration](/concepts/loan-types) - Set up loan products
+
+## Best Practices
+
+<Tip>
+**Workflow Tips:**
+- Save as draft when you need to verify member information
+- Double-check principal amounts before submitting
+- Use clear, descriptive purposes for loan applications
+- Review the repayment schedule before submission
+- Add notes for unusual or special cases
+</Tip>
+
+<Warning>
+**Common Mistakes to Avoid:**
+- Submitting loans for unverified members
+- Forgetting to disburse after approval (loan stays APPROVED forever)
+- Disbursing before final verification of borrower identity
+- Deleting loans instead of using CANCELED status
+- Approving without reviewing member's existing loan load
+</Warning>

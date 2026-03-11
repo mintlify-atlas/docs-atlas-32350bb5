@@ -1,0 +1,315 @@
+---
+title: 'Create Union Member'
+openapi: 'POST /api/union-members'
+---
+
+Creates a new union member with automatic member code generation.
+
+## Authorization
+
+Requires authentication with one of the following roles:
+- **Admin**: Can create members in any union
+- **Supervisor**: Can create members in unions managed by their credit officers
+- **Credit Officer**: Can create members in their assigned unions only
+
+## Request Body
+
+<ParamField body="firstName" type="string" required>
+  Member's first name
+</ParamField>
+
+<ParamField body="lastName" type="string" required>
+  Member's last name
+</ParamField>
+
+<ParamField body="unionId" type="string" required>
+  ID of the union this member belongs to
+</ParamField>
+
+<ParamField body="email" type="string">
+  Member's email address (must be unique)
+</ParamField>
+
+<ParamField body="phone" type="string">
+  Member's phone number
+</ParamField>
+
+<ParamField body="address" type="string">
+  Member's physical address
+</ParamField>
+
+<ParamField body="dateOfBirth" type="string">
+  Member's date of birth (ISO 8601 format)
+</ParamField>
+
+<ParamField body="gender" type="string">
+  Member's gender
+</ParamField>
+
+<ParamField body="maritalStatus" type="string">
+  Member's marital status (e.g., "Single", "Married", "Divorced")
+</ParamField>
+
+<ParamField body="profession" type="string">
+  Member's profession or occupation
+</ParamField>
+
+<ParamField body="company" type="string">
+  Member's employer or company name
+</ParamField>
+
+<ParamField body="city" type="string">
+  City of residence
+</ParamField>
+
+<ParamField body="state" type="string">
+  State or province
+</ParamField>
+
+<ParamField body="country" type="string">
+  Country of residence
+</ParamField>
+
+<ParamField body="zipCode" type="string">
+  Postal or ZIP code
+</ParamField>
+
+<ParamField body="note" type="string">
+  Additional notes about the member
+</ParamField>
+
+<ParamField body="currentOfficerId" type="string">
+  ID of the credit officer to assign (defaults to the union's credit officer)
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the member was created successfully
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success or error message
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Created union member object
+  
+  <Expandable title="Union Member Object">
+    <ResponseField name="id" type="string">
+      Unique member identifier
+    </ResponseField>
+    
+    <ResponseField name="code" type="string">
+      Auto-generated member code (e.g., MEM000001)
+    </ResponseField>
+    
+    <ResponseField name="firstName" type="string">
+      Member's first name
+    </ResponseField>
+    
+    <ResponseField name="lastName" type="string">
+      Member's last name
+    </ResponseField>
+    
+    <ResponseField name="email" type="string" optional>
+      Member's email address
+    </ResponseField>
+    
+    <ResponseField name="phone" type="string" optional>
+      Member's phone number
+    </ResponseField>
+    
+    <ResponseField name="address" type="string" optional>
+      Member's physical address
+    </ResponseField>
+    
+    <ResponseField name="dateOfBirth" type="string" optional>
+      Member's date of birth
+    </ResponseField>
+    
+    <ResponseField name="gender" type="string" optional>
+      Member's gender
+    </ResponseField>
+    
+    <ResponseField name="maritalStatus" type="string" optional>
+      Member's marital status
+    </ResponseField>
+    
+    <ResponseField name="profession" type="string" optional>
+      Member's profession
+    </ResponseField>
+    
+    <ResponseField name="company" type="string" optional>
+      Member's employer
+    </ResponseField>
+    
+    <ResponseField name="city" type="string" optional>
+      City of residence
+    </ResponseField>
+    
+    <ResponseField name="state" type="string" optional>
+      State or province
+    </ResponseField>
+    
+    <ResponseField name="country" type="string" optional>
+      Country
+    </ResponseField>
+    
+    <ResponseField name="zipCode" type="string" optional>
+      ZIP code
+    </ResponseField>
+    
+    <ResponseField name="note" type="string" optional>
+      Additional notes
+    </ResponseField>
+    
+    <ResponseField name="unionId" type="string">
+      Union ID
+    </ResponseField>
+    
+    <ResponseField name="union" type="object">
+      Union details
+    </ResponseField>
+    
+    <ResponseField name="currentOfficerId" type="string">
+      Assigned credit officer ID
+    </ResponseField>
+    
+    <ResponseField name="currentOfficer" type="object">
+      Credit officer details
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      Creation timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Validation Rules
+
+- **firstName** and **lastName** are required and will be trimmed
+- **unionId** is required and must reference an existing, active union
+- **email** must be unique across all union members (case-insensitive)
+- **currentOfficerId** must match the union's credit officer if provided
+- Credit officers can only create members for their assigned unions
+- Supervisors can only create members for unions managed by their credit officers
+- Auto-generated **code** starts at MEM000001 and increments sequentially
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://api.example.com/api/union-members" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "john.doe@example.com",
+    "phone": "+234-800-000-0000",
+    "unionId": "union_123",
+    "profession": "Potter",
+    "city": "Lagos",
+    "state": "Lagos",
+    "country": "Nigeria"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.example.com/api/union-members', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    firstName: 'John',
+    lastName: 'Doe',
+    email: 'john.doe@example.com',
+    phone: '+234-800-000-0000',
+    unionId: 'union_123',
+    profession: 'Potter',
+    city: 'Lagos',
+    state: 'Lagos',
+    country: 'Nigeria'
+  })
+});
+const data = await response.json();
+```
+</RequestExample>
+
+<ResponseExample>
+```json 201 Created
+{
+  "success": true,
+  "message": "Union member created successfully",
+  "data": {
+    "id": "clx123abc",
+    "code": "MEM000042",
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "john.doe@example.com",
+    "phone": "+234-800-000-0000",
+    "address": null,
+    "dateOfBirth": null,
+    "gender": null,
+    "maritalStatus": null,
+    "profession": "Potter",
+    "company": null,
+    "city": "Lagos",
+    "state": "Lagos",
+    "country": "Nigeria",
+    "zipCode": null,
+    "note": null,
+    "unionId": "union_123",
+    "union": {
+      "id": "union_123",
+      "name": "Lagos Potters Union",
+      "location": "Ikeja, Lagos"
+    },
+    "currentOfficerId": "officer_456",
+    "currentOfficer": {
+      "id": "officer_456",
+      "firstName": "Jane",
+      "lastName": "Smith",
+      "email": "jane.smith@example.com"
+    },
+    "createdAt": "2024-03-11T15:30:00.000Z"
+  }
+}
+```
+
+```json 400 Bad Request - Missing Required Fields
+{
+  "success": false,
+  "message": "firstName, lastName, and unionId are required"
+}
+```
+
+```json 400 Bad Request - Email Already Exists
+{
+  "success": false,
+  "message": "Email already exists"
+}
+```
+
+```json 400 Bad Request - Union Not Found
+{
+  "success": false,
+  "message": "Union not found"
+}
+```
+
+```json 400 Bad Request - Permission Denied
+{
+  "success": false,
+  "message": "Credit officers can only create members for their own unions"
+}
+```
+
+```json 401 Unauthorized
+{
+  "success": false,
+  "message": "Unauthorized"
+}
+```
+</ResponseExample>

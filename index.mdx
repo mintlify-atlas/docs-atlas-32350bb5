@@ -1,97 +1,202 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Millenium Potters"
+description: "A comprehensive microfinance loan management platform for tracking unions, members, loans, and repayments"
 ---
 
-## Setting up
+<img
+  className="block"
+  src="https://media.brand.dev/95084e78-30b6-4420-a870-9455dd7fcafd.png"
+  alt="Millenium Potters Logo"
+  style={{ maxWidth: '300px', margin: '0 auto 2rem' }}
+/>
 
-Get your documentation site up and running in minutes.
+## Welcome to Millenium Potters
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+A powerful, modern microfinance management platform designed to streamline your loan operations from member registration to repayment tracking. Built with Next.js 14, Node.js, and CockroachDB for scalability and reliability.
 
-## Make it yours
+## Quick Navigation
 
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
+<CardGroup cols={2}>
   <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
+    title="Get Started"
+    icon="rocket"
+    href="/quickstart"
   >
-    Edit your docs locally and preview them in real time.
+    Set up Millenium Potters in minutes with our quickstart guide
   </Card>
   <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
+    title="Architecture Overview"
+    icon="diagram-project"
+    href="/architecture"
   >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+    Understand the system architecture and tech stack
   </Card>
   <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
-
-## Create beautiful pages
-
-Everything you need to create world-class documentation.
-
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
+    title="API Reference"
     icon="code"
-    href="/essentials/code"
+    href="/api/auth/overview"
   >
-    Add sample code to demonstrate how to use your product.
+    Explore the complete REST API documentation
   </Card>
   <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
+    title="User Roles"
+    icon="users"
+    href="/roles/overview"
   >
-    Display images and other media.
+    Learn about Admin, Supervisor, and Credit Officer roles
   </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+</CardGroup>
 
-## Need inspiration?
+## Core Features
+
+<CardGroup cols={3}>
+  <Card
+    title="Dashboard Analytics"
+    icon="chart-line"
+    href="/features/dashboard"
+  >
+    Real-time insights with Command Center view
+  </Card>
+  <Card
+    title="Union Management"
+    icon="building"
+    href="/features/unions"
+  >
+    Organize and manage member unions
+  </Card>
+  <Card
+    title="Member Tracking"
+    icon="user-group"
+    href="/features/members"
+  >
+    Complete member profiles with document uploads
+  </Card>
+  <Card
+    title="Loan Processing"
+    icon="file-invoice-dollar"
+    href="/features/loans"
+  >
+    Full loan lifecycle from draft to completion
+  </Card>
+  <Card
+    title="Repayment Tracking"
+    icon="money-bill-transfer"
+    href="/features/repayments"
+  >
+    Record and monitor all loan payments
+  </Card>
+  <Card
+    title="Reporting"
+    icon="chart-simple"
+    href="/features/reporting"
+  >
+    Supervisor reports and analytics
+  </Card>
+</CardGroup>
+
+## Key Capabilities
+
+<AccordionGroup>
+  <Accordion title="Role-Based Access Control">
+    Three distinct user roles with tailored permissions:
+    - **Admin**: Full system access and user management
+    - **Supervisor**: Oversight of credit officers and reporting
+    - **Credit Officer**: Union and loan management within assigned areas
+  </Accordion>
+  
+  <Accordion title="Comprehensive Loan Management">
+    Complete loan lifecycle tracking:
+    - Draft creation and approval workflows
+    - Automated repayment schedule generation
+    - Multiple loan statuses (Active, Completed, Defaulted, Written Off)
+    - Support for various repayment methods (Cash, Transfer, POS, Mobile, USSD)
+  </Accordion>
+  
+  <Accordion title="Production-Ready Infrastructure">
+    Built for scale and reliability:
+    - CockroachDB serverless database with automatic backups
+    - Cloudinary integration for document storage
+    - Maintenance mode for safe deployments
+    - Audit logging and activity tracking
+    - Supabase authentication with OAuth and JWT
+  </Accordion>
+  
+  <Accordion title="Modern Tech Stack">
+    - **Frontend**: Next.js 14, Tailwind CSS, Aceternity UI, Shepherd.js
+    - **Backend**: Node.js, Express, Prisma ORM
+    - **Database**: CockroachDB (production), PostgreSQL 18 (local)
+    - **Auth**: Supabase
+    - **Storage**: Cloudinary
+  </Accordion>
+</AccordionGroup>
+
+## Get Started
+
+<Steps>
+  <Step title="Review Prerequisites">
+    Check system requirements and ensure you have Node.js 18+ and PostgreSQL 18 for local development.
+    
+    [View prerequisites →](/deployment/prerequisites)
+  </Step>
+  
+  <Step title="Set Up Environment">
+    Configure your environment variables for both frontend and backend applications.
+    
+    [Environment setup →](/deployment/environment)
+  </Step>
+  
+  <Step title="Initialize Database">
+    Set up your database schema using Prisma and run initial migrations.
+    
+    [Database setup →](/deployment/database)
+  </Step>
+  
+  <Step title="Start Development">
+    Launch the development servers and start building.
+    
+    [Quickstart guide →](/quickstart)
+  </Step>
+</Steps>
+
+## Popular Guides
+
+<CardGroup cols={2}>
+  <Card
+    title="User Management"
+    icon="user-plus"
+    href="/guides/user-management"
+  >
+    Create and manage system users with appropriate roles
+  </Card>
+  <Card
+    title="Loan Processing"
+    icon="file-contract"
+    href="/guides/loan-processing"
+  >
+    Step-by-step guide to processing loans from application to approval
+  </Card>
+  <Card
+    title="Repayment Tracking"
+    icon="hand-holding-dollar"
+    href="/guides/repayment-tracking"
+  >
+    Record and monitor loan repayments effectively
+  </Card>
+  <Card
+    title="Reporting & Analytics"
+    icon="chart-pie"
+    href="/guides/reporting-analytics"
+  >
+    Generate insights with supervisor reports and analytics
+  </Card>
+</CardGroup>
+
+## Need Help?
 
 <Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
+  title="View on GitHub"
+  icon="github"
+  href="https://github.com/Tee-David/Millenium-Potters"
 >
-  Browse our showcase of exceptional documentation sites.
+  Explore the source code, report issues, or contribute to the project
 </Card>

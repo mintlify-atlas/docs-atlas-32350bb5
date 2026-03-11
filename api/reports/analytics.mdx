@@ -1,0 +1,228 @@
+---
+title: Dashboard Analytics
+description: Real-time dashboard data and analytics for supervisors
+---
+
+The Dashboard Analytics endpoint provides comprehensive, real-time data about team performance, including aggregated metrics, officer performance breakdown, loan status distribution, and monthly trends.
+
+## Get Dashboard
+
+<CodeGroup>
+```bash GET /api/supervisor-reports/dashboard
+curl "https://api.millenniumpotters.com/api/supervisor-reports/dashboard?periodStart=2024-01-01&periodEnd=2024-01-31" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+</CodeGroup>
+
+Retrieve real-time dashboard data for a supervisor with optional date filtering.
+
+### Query Parameters
+
+<ParamField query="periodStart" type="string">
+  Optional start date for filtering data (ISO 8601 format). If not provided, all historical data is included.
+</ParamField>
+
+<ParamField query="periodEnd" type="string">
+  Optional end date for filtering data (ISO 8601 format). If not provided, data up to the current date is included.
+</ParamField>
+
+<ParamField query="supervisorId" type="string">
+  **ADMIN only**: View dashboard for a specific supervisor. Regular supervisors can only view their own dashboard.
+</ParamField>
+
+### Response
+
+<ResponseField name="supervisor" type="object">
+  Information about the supervisor.
+  <Expandable>
+    <ResponseField name="id" type="string">
+      Supervisor user ID.
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Full name of the supervisor.
+    </ResponseField>
+    <ResponseField name="email" type="string">
+      Supervisor's email address.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="summary" type="object">
+  Aggregated summary metrics across all officers.
+  <Expandable>
+    <ResponseField name="totalOfficers" type="number">
+      Total number of credit officers under this supervisor.
+    </ResponseField>
+    <ResponseField name="totalUnions" type="number">
+      Total number of unions managed by the team.
+    </ResponseField>
+    <ResponseField name="totalMembers" type="number">
+      Total number of union members across all unions.
+    </ResponseField>
+    <ResponseField name="verifiedMembers" type="number">
+      Number of verified union members.
+    </ResponseField>
+    <ResponseField name="pendingMembers" type="number">
+      Number of pending (unverified) union members.
+    </ResponseField>
+    <ResponseField name="totalLoans" type="number">
+      Total number of loans in the period.
+    </ResponseField>
+    <ResponseField name="activeLoans" type="number">
+      Number of loans with ACTIVE status.
+    </ResponseField>
+    <ResponseField name="completedLoans" type="number">
+      Number of loans with COMPLETED status.
+    </ResponseField>
+    <ResponseField name="defaultedLoans" type="number">
+      Number of loans with DEFAULTED or WRITTEN_OFF status.
+    </ResponseField>
+    <ResponseField name="totalDisbursed" type="number">
+      Total principal amount disbursed across all loans.
+    </ResponseField>
+    <ResponseField name="totalRepaid" type="number">
+      Total amount repaid across all loans.
+    </ResponseField>
+    <ResponseField name="totalOutstanding" type="number">
+      Total outstanding amount (disbursed - repaid).
+    </ResponseField>
+    <ResponseField name="collectionRate" type="number">
+      Collection rate as a percentage (totalRepaid / totalDisbursed * 100).
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="officerPerformance" type="array">
+  Performance breakdown for each credit officer.
+  <Expandable>
+    <ResponseField name="officerId" type="string">
+      Credit officer user ID.
+    </ResponseField>
+    <ResponseField name="officerName" type="string">
+      Full name of the credit officer.
+    </ResponseField>
+    <ResponseField name="email" type="string">
+      Officer's email address.
+    </ResponseField>
+    <ResponseField name="totalUnions" type="number">
+      Number of unions managed by this officer.
+    </ResponseField>
+    <ResponseField name="totalMembers" type="number">
+      Total union members under this officer.
+    </ResponseField>
+    <ResponseField name="verifiedMembers" type="number">
+      Number of verified members.
+    </ResponseField>
+    <ResponseField name="pendingMembers" type="number">
+      Number of pending members.
+    </ResponseField>
+    <ResponseField name="totalLoans" type="number">
+      Total number of loans.
+    </ResponseField>
+    <ResponseField name="activeLoans" type="number">
+      Number of active loans.
+    </ResponseField>
+    <ResponseField name="completedLoans" type="number">
+      Number of completed loans.
+    </ResponseField>
+    <ResponseField name="defaultedLoans" type="number">
+      Number of defaulted loans.
+    </ResponseField>
+    <ResponseField name="totalDisbursed" type="number">
+      Total amount disbursed by this officer.
+    </ResponseField>
+    <ResponseField name="totalRepaid" type="number">
+      Total amount repaid for this officer's loans.
+    </ResponseField>
+    <ResponseField name="totalOutstanding" type="number">
+      Outstanding amount for this officer.
+    </ResponseField>
+    <ResponseField name="collectionRate" type="number">
+      This officer's collection rate percentage.
+    </ResponseField>
+    <ResponseField name="lastActivityAt" type="string">
+      Timestamp of the officer's last activity.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="loanStatusDistribution" type="array">
+  Breakdown of loans by status.
+  <Expandable>
+    <ResponseField name="status" type="string">
+      Loan status (DRAFT, PENDING_APPROVAL, APPROVED, ACTIVE, COMPLETED, DEFAULTED, WRITTEN_OFF, CANCELED).
+    </ResponseField>
+    <ResponseField name="count" type="number">
+      Number of loans with this status.
+    </ResponseField>
+    <ResponseField name="amount" type="number">
+      Total principal amount for loans with this status.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="monthlyTrends" type="array">
+  Monthly trends for the last 6 months.
+  <Expandable>
+    <ResponseField name="month" type="string">
+      Month label (e.g., "Jan 2024").
+    </ResponseField>
+    <ResponseField name="disbursed" type="number">
+      Total amount disbursed in this month.
+    </ResponseField>
+    <ResponseField name="repaid" type="number">
+      Total amount repaid in this month.
+    </ResponseField>
+    <ResponseField name="newLoans" type="number">
+      Number of new loans created in this month.
+    </ResponseField>
+    <ResponseField name="newMembers" type="number">
+      Number of new union members added in this month.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Required Permissions
+
+- **SUPERVISOR**: Can view their own team's dashboard
+- **ADMIN**: Can view any supervisor's dashboard by providing `supervisorId`
+
+## Use Cases
+
+### Real-Time Monitoring
+
+Use this endpoint without date filters to get current, real-time data about team performance:
+
+```bash
+curl "https://api.millenniumpotters.com/api/supervisor-reports/dashboard" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Period Analysis
+
+Filter by specific date ranges to analyze performance for a particular period:
+
+```bash
+curl "https://api.millenniumpotters.com/api/supervisor-reports/dashboard?periodStart=2024-01-01T00:00:00Z&periodEnd=2024-03-31T23:59:59Z" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Admin Oversight
+
+Administrators can view any supervisor's dashboard:
+
+```bash
+curl "https://api.millenniumpotters.com/api/supervisor-reports/dashboard?supervisorId=clx123abc" \
+  -H "Authorization: Bearer ADMIN_TOKEN"
+```
+
+## Data Freshness
+
+This endpoint queries the database in real-time and does not use cached data. For frequently accessed reports, consider using the [Generate Report](/api/reports/supervisor#generate-report) endpoint to create a snapshot that can be retrieved quickly.
+
+## Performance Considerations
+
+- The dashboard aggregates data across multiple tables (unions, members, loans, repayments)
+- For large teams with many transactions, response times may vary
+- Date filtering can improve performance by limiting the data scope
+- Consider generating report sessions for historical analysis rather than repeatedly calling this endpoint

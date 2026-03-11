@@ -1,0 +1,507 @@
+---
+title: Database Setup
+description: Initialize and migrate your database schema for local development and production
+---
+
+This guide covers database setup for both local PostgreSQL (development) and CockroachDB (production) environments.
+
+## Database Providers
+
+| Environment | Database | Purpose |
+|-------------|----------|----------|
+| **Local Development** | PostgreSQL 18 | Fast iteration, offline work |
+| **Production** | CockroachDB Serverless | Auto-scaling, automatic backups, PITR |
+
+<Info>
+  CockroachDB is PostgreSQL-compatible, so the same Prisma schema works for both environments.
+</Info>
+
+## Local Development Setup
+
+### 1. Install PostgreSQL 18
+
+<Tabs>
+  <Tab title="Ubuntu/Debian">
+    ```bash
+    # Add PostgreSQL repository
+    sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+    wget -qO- https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo tee /etc/apt/trusted.gpg.d/pgdg.asc
+    
+    # Install PostgreSQL 18
+    sudo apt update
+    sudo apt install postgresql-18 postgresql-contrib-18
+    
+    # Start service
+    sudo systemctl start postgresql
+    sudo systemctl enable postgresql
+    ```
+  </Tab>
+
+  <Tab title="macOS">
+    ```bash
+    # Using Homebrew
+    brew install postgresql@18
+    
+    # Start service
+    brew services start postgresql@18
+    
+    # Or use Postgres.app (GUI)
+    # Download from https://postgresapp.com
+    ```
+  </Tab>
+
+  <Tab title="Windows">
+    1. Download PostgreSQL 18 installer from [postgresql.org](https://www.postgresql.org/download/windows/)
+    2. Run the installer
+    3. Note the password you set for the `postgres` user
+    4. Ensure PostgreSQL service is running
+  </Tab>
+</Tabs>
+
+### 2. Create Local Database
+
+```bash
+# Connect to PostgreSQL as superuser
+psql -U postgres
+
+# Create database
+CREATE DATABASE millenium_local;
+
+# Exit psql
+\q
+```
+
+<Note>
+  If you get a password prompt, use the password you set during PostgreSQL installation.
+</Note>
+
+### 3. Configure Connection String
+
+Update `backend/.env.local`:
+
+```env
+DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@localhost:5432/millenium_local?schema=public"
+DIRECT_URL="postgresql://postgres:YOUR_PASSWORD@localhost:5432/millenium_local?schema=public"
+```
+
+Replace `YOUR_PASSWORD` with your PostgreSQL password.
+
+### 4. Initialize Database Schema
+
+<Steps>
+  <Step title="Navigate to backend directory">
+    ```bash
+    cd backend
+    ```
+  </Step>
+
+  <Step title="Generate Prisma Client">
+    ```bash
+    npx prisma generate
+    ```
+    
+    This creates the TypeScript client from your schema.
+  </Step>
+
+  <Step title="Push schema to database">
+    ```bash
+    npx prisma db push
+    ```
+    
+    <Warning>
+      `db push` is **only for development**. It synchronizes your schema without migrations.
+    </Warning>
+    
+    Expected output:
+    ```
+    🚀  Your database is now in sync with your Prisma schema.
+    ✔ Generated Prisma Client
+    ```
+  </Step>
+
+  <Step title="Verify with Prisma Studio (optional)">
+    ```bash
+    npx prisma studio
+    ```
+    
+    Opens a GUI at http://localhost:5555 to browse your database.
+  </Step>
+</Steps>
+
+## Production Setup (CockroachDB)
+
+### 1. Create CockroachDB Cluster
+
+<Steps>
+  <Step title="Sign up for CockroachDB Cloud">
+    Go to [cockroachlabs.cloud](https://cockroachlabs.cloud) and create an account.
+  </Step>
+
+  <Step title="Create a Serverless cluster">
+    - Click "Create Cluster"
+    - Select **Serverless** tier (free tier available)
+    - Choose a region close to your users
+    - Name your cluster (e.g., `millennium-potters-prod`)
+  </Step>
+
+  <Step title="Create SQL user">
+    - Go to "SQL Users" tab
+    - Click "Add User"
+    - Set username and generate a strong password
+    - **Save the password** - it won't be shown again
+  </Step>
+
+  <Step title="Get connection string">
+    - Go to "Connect" tab
+    - Select "General connection string"
+    - Copy the connection string
+    - It will look like:
+    ```
+    postgresql://user:password@cluster.aws-region.cockroachlabs.cloud:26257/defaultdb?sslmode=verify-full
+    ```
+  </Step>
+</Steps>
+
+### 2. Configure Production Environment
+
+Create `backend/.env.production`:
+
+```env
+# Connection string with pooling for application use
+DATABASE_URL="postgresql://user:password@host.cockroachlabs.cloud:26257/defaultdb?sslmode=verify-full&connection_limit=20&pool_timeout=20"
+
+# Direct connection for migrations (no pooling)
+DIRECT_URL="postgresql://user:password@host.cockroachlabs.cloud:26257/defaultdb?sslmode=verify-full"
+```
+
+<ParamField path="connection_limit" type="number" default="20">
+  Maximum number of connections in the pool. Set to 20-30 for 50-100 concurrent users.
+</ParamField>
+
+<ParamField path="pool_timeout" type="number" default="20">
+  Connection acquisition timeout in seconds.
+</ParamField>
+
+### 3. Apply Schema to Production
+
+<Warning>
+  **NEVER use `prisma db push` in production**. It can cause data loss. Always use migrations.
+</Warning>
+
+<Steps>
+  <Step title="Generate migration plan">
+    ```bash
+    npx prisma migrate diff \
+      --from-url "$DIRECT_URL" \
+      --to-schema-datamodel prisma/schema.prisma \
+      --script > migration_plan.sql
+    ```
+    
+    This generates a SQL script showing exactly what will change.
+  </Step>
+
+  <Step title="Review migration script">
+    Open `migration_plan.sql` and verify:
+    
+    - ✅ `CREATE TABLE` statements (safe)
+    - ✅ `ALTER TABLE ... ADD COLUMN` (safe)
+    - ⚠️ `ALTER TABLE ... DROP COLUMN` (review carefully)
+    - ❌ `DROP TABLE` (investigate immediately)
+  </Step>
+
+  <Step title="Apply migration">
+    ```bash
+    npx prisma db execute \
+      --url "$DIRECT_URL" \
+      --file migration_plan.sql
+    ```
+  </Step>
+
+  <Step title="Verify schema">
+    ```bash
+    npx prisma db pull --url "$DIRECT_URL"
+    ```
+    
+    Confirms your Prisma schema matches the database.
+  </Step>
+</Steps>
+
+## Prisma Commands Reference
+
+### Development Commands
+
+```bash
+# Generate Prisma Client (run after schema changes)
+npx prisma generate
+
+# Sync schema to database (dev only)
+npx prisma db push
+
+# Open database GUI
+npx prisma studio
+
+# Pull schema from database (reverse engineering)
+npx prisma db pull
+```
+
+### Production Commands
+
+```bash
+# Generate migration SQL (safe preview)
+npx prisma migrate diff \
+  --from-url "$DATABASE_URL" \
+  --to-schema-datamodel prisma/schema.prisma \
+  --script
+
+# Apply migration from file
+npx prisma db execute --url "$DATABASE_URL" --file migration.sql
+
+# Deploy pending migrations (if using migrate dev)
+npx prisma migrate deploy
+```
+
+<Note>
+  All production commands should use `DIRECT_URL` (without connection pooling) to avoid migration issues.
+</Note>
+
+## Database Schema Overview
+
+The Millennium Potters schema includes:
+
+### Core Models
+
+- **User** - Staff accounts (Admin, Supervisor, Credit Officer)
+- **Union** - Groups of members managed by a Credit Officer
+- **UnionMember** - Individual borrowers
+- **LoanType** - Loan product definitions
+- **Loan** - Loan applications and records
+
+### Financial Models
+
+- **RepaymentScheduleItem** - Payment due dates
+- **Repayment** - Actual payments received
+- **RepaymentAllocation** - Links payments to schedule items
+
+### Supporting Models
+
+- **DocumentType** - Document categories
+- **UnionMemberDocument** - Member identity documents
+- **LoanDocument** - Loan collateral documents
+- **BackupRecord** - Backup metadata
+- **AuditLog** - Activity tracking
+- **CompanySetting** - System configuration
+
+### Key Schema Features
+
+- **Soft Deletes**: All models use `deletedAt` instead of hard deletes
+- **Audit Trail**: Full history via `AuditLog` and reassignment tables
+- **Connection Pooling**: Configured in `datasource` block
+- **Enums**: Strongly typed status fields
+
+## Connection String Format
+
+### PostgreSQL (Local)
+
+```
+postgresql://username:password@host:port/database?schema=public
+```
+
+Example:
+```
+postgresql://postgres:mypassword@localhost:5432/millenium_local?schema=public
+```
+
+### CockroachDB (Production)
+
+```
+postgresql://username:password@host:port/database?sslmode=verify-full&connection_limit=20&pool_timeout=20
+```
+
+Example:
+```
+postgresql://millennium:abc123@free-tier.aws-us-east-1.cockroachlabs.cloud:26257/defaultdb?sslmode=verify-full&connection_limit=25&pool_timeout=20
+```
+
+<ParamField path="sslmode" type="string" required>
+  **Always** use `verify-full` for production CockroachDB connections.
+</ParamField>
+
+## Schema Migration Process
+
+### For New Features
+
+<Steps>
+  <Step title="Update Prisma schema">
+    Edit `backend/prisma/schema.prisma` to add new models or fields.
+  </Step>
+
+  <Step title="Test locally">
+    ```bash
+    npx prisma db push
+    ```
+    
+    Test your changes in development.
+  </Step>
+
+  <Step title="Generate migration SQL">
+    ```bash
+    npx prisma migrate diff \
+      --from-url "$PRODUCTION_URL" \
+      --to-schema-datamodel prisma/schema.prisma \
+      --script > migration_$(date +%Y%m%d).sql
+    ```
+  </Step>
+
+  <Step title="Review and apply">
+    1. Review the migration SQL
+    2. Test on a staging database if available
+    3. Apply to production during maintenance window
+    4. Verify with health checks
+  </Step>
+</Steps>
+
+## Backup and Recovery
+
+### Automated Backups (CockroachDB)
+
+CockroachDB Serverless includes:
+- **Automatic hourly backups** (last 30 days)
+- **Point-in-Time Recovery (PITR)** to any point in the last 30 days
+- No configuration required
+
+### Manual Backups
+
+<Tabs>
+  <Tab title="PostgreSQL (Local)">
+    ```bash
+    # Backup entire database
+    pg_dump -U postgres millenium_local > backup_$(date +%Y%m%d).sql
+    
+    # Restore from backup
+    psql -U postgres millenium_local < backup_20260311.sql
+    ```
+  </Tab>
+
+  <Tab title="CockroachDB (Production)">
+    ```bash
+    # Export using pg_dump (PostgreSQL-compatible)
+    pg_dump "$DATABASE_URL" --no-owner --no-acl > prod_backup_$(date +%Y%m%d_%H%M%S).sql
+    
+    # Restore
+    psql "$DATABASE_URL" < prod_backup_20260311_120000.sql
+    ```
+    
+    <Note>
+      The backup file is PostgreSQL-compatible and works directly with CockroachDB.
+    </Note>
+  </Tab>
+</Tabs>
+
+### Application-Level Backups
+
+The system includes a built-in backup feature:
+
+- **Location**: Cloudinary (cloud storage)
+- **Format**: JSON export of all tables
+- **Trigger**: Manual via Settings → Backup or scheduled
+- **Retention**: Configurable (default 30 days)
+
+See [Production Deployment](/deployment/production#backup-strategy) for details.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection refused errors">
+    **Symptoms**: `Error: connect ECONNREFUSED 127.0.0.1:5432`
+    
+    **Solutions**:
+    - Check PostgreSQL is running: `sudo systemctl status postgresql`
+    - Start PostgreSQL: `sudo systemctl start postgresql`
+    - Verify port 5432 is open: `sudo netstat -plnt | grep 5432`
+  </Accordion>
+
+  <Accordion title="Authentication failed">
+    **Symptoms**: `password authentication failed for user "postgres"`
+    
+    **Solutions**:
+    - Verify password in connection string
+    - Reset PostgreSQL password:
+      ```bash
+      sudo -u postgres psql
+      ALTER USER postgres PASSWORD 'newpassword';
+      ```
+  </Accordion>
+
+  <Accordion title="Database does not exist">
+    **Symptoms**: `database "millenium_local" does not exist`
+    
+    **Solutions**:
+    ```bash
+    psql -U postgres -c "CREATE DATABASE millenium_local;"
+    ```
+  </Accordion>
+
+  <Accordion title="Prisma schema out of sync">
+    **Symptoms**: `The schema is not in sync with the database`
+    
+    **Solutions**:
+    - In development: `npx prisma db push`
+    - In production: Generate and apply migration
+    - Emergency: `npx prisma db pull` (overwrites schema with database state)
+  </Accordion>
+
+  <Accordion title="CockroachDB connection timeout">
+    **Symptoms**: Connection hangs or times out
+    
+    **Solutions**:
+    - Check SSL mode: must be `verify-full`
+    - Verify cluster is running in CockroachDB dashboard
+    - Check firewall allows outbound connections on port 26257
+    - Test connection: `psql "$DATABASE_URL" -c "SELECT 1;"`
+  </Accordion>
+
+  <Accordion title="Too many connections error">
+    **Symptoms**: `remaining connection slots are reserved`
+    
+    **Solutions**:
+    - Reduce `connection_limit` in `DATABASE_URL`
+    - Check for connection leaks in application code
+    - Restart application to close stale connections
+    - Monitor connection count in CockroachDB dashboard
+  </Accordion>
+</AccordionGroup>
+
+## Performance Tuning
+
+### Connection Pool Sizing
+
+```env
+# For 50-100 concurrent users
+DATABASE_URL="...?connection_limit=20&pool_timeout=20"
+
+# For 100-200 concurrent users
+DATABASE_URL="...?connection_limit=30&pool_timeout=30"
+```
+
+**Formula**: `connection_limit = (expected_concurrent_users * 0.2) + 10`
+
+### Index Optimization
+
+The schema includes indexes on:
+- Primary keys (automatic)
+- Foreign keys (automatic)
+- Frequently queried fields (`email`, `loanNumber`, `deletedAt`)
+- Composite indexes for complex queries
+
+No additional indexing needed for typical workloads.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Production Deployment" icon="rocket" href="/deployment/production">
+    Deploy the application to production
+  </Card>
+  <Card title="Environment Variables" icon="gear" href="/deployment/environment">
+    Review environment configuration
+  </Card>
+</CardGroup>

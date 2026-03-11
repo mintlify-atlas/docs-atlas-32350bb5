@@ -1,0 +1,169 @@
+---
+title: User Roles Overview
+description: Understanding the three-tier role system in Millenium Potters
+---
+
+The Millenium Potters platform implements a hierarchical three-tier role system designed for microfinance operations. This structure ensures proper separation of duties, accountability, and operational efficiency.
+
+## Role Hierarchy
+
+The system defines three distinct roles in the `Role` enum:
+
+```prisma
+enum Role {
+  ADMIN
+  SUPERVISOR
+  CREDIT_OFFICER
+}
+```
+
+## Role Structure
+
+The platform enforces a clear organizational hierarchy:
+
+```
+ADMIN (Top Level)
+  |
+  └── SUPERVISOR (Middle Management)
+        |
+        └── CREDIT_OFFICER (Field Operations)
+```
+
+### Supervisor-to-Officer Relationship
+
+Credit Officers are linked to their Supervisors through the `supervisorId` field in the User model:
+
+```prisma
+model User {
+  id             String  @id @default(cuid())
+  email          String  @unique
+  role           Role
+  
+  // Supervisor relationship
+  supervisorId   String?
+  supervisor     User?   @relation("SupervisorToOfficers", fields: [supervisorId], references: [id])
+  creditOfficers User[]  @relation("SupervisorToOfficers")
+  
+  // ...
+}
+```
+
+<Note>
+  A Supervisor can oversee multiple Credit Officers, while each Credit Officer reports to one Supervisor.
+</Note>
+
+## Permission Comparison
+
+Here's a comprehensive comparison of what each role can do:
+
+| Feature | Admin | Supervisor | Credit Officer |
+|---------|-------|------------|----------------|
+| **User Management** |
+| Create users | ✅ | ✅ | ❌ |
+| Update any user | ✅ | ❌ | Self only |
+| Delete users | ✅ | ❌ | ❌ |
+| Reset passwords | ✅ | ❌ | ❌ |
+| **Union Management** |
+| Create unions | ✅ | ✅ | ❌ |
+| View unions | ✅ | ✅ | Assigned only |
+| Update unions | ✅ | ❌ | ❌ |
+| Delete unions | ✅ | ❌ | ❌ |
+| Reassign unions | ✅ | ❌ | ❌ |
+| **Member Management** |
+| Add members | ✅ | ✅ | ✅ |
+| View members | ✅ | All supervised | Assigned only |
+| Update members | ✅ | ✅ | ✅ |
+| Delete members | ✅ | ❌ | ❌ |
+| **Loan Operations** |
+| Create loans | ✅ | ✅ | ✅ |
+| View loans | ✅ | All supervised | Assigned only |
+| Update loan details | ✅ | ✅ | ✅ |
+| Approve/Reject loans | ✅ | ✅ | ❌ |
+| Disburse loans | ✅ | ✅ | ❌ |
+| Assign loans | ✅ | ✅ | ❌ |
+| Delete loans | ✅ | ✅ | ✅ |
+| **Repayments** |
+| Record repayments | ✅ | ✅ | ✅ |
+| View repayments | ✅ | All supervised | Assigned only |
+| **Reporting** |
+| Supervisor reports | ✅ | ✅ | ❌ |
+| Officer performance | ✅ | ✅ | ❌ |
+| System reports | ✅ | ❌ | ❌ |
+| **System Settings** |
+| Company settings | ✅ | ❌ | ❌ |
+| Loan types | ✅ | ❌ | ❌ |
+| Email templates | ✅ | ❌ | ❌ |
+| Maintenance mode | ✅ | ❌ | ❌ |
+| Backup/Restore | ✅ | ❌ | ❌ |
+
+## Middleware Implementation
+
+The platform uses role-based middleware to enforce permissions:
+
+```typescript
+// From role.middleware.ts
+export const requireAdmin = requireRole(Role.ADMIN);
+export const requireSupervisor = requireRole(Role.ADMIN, Role.SUPERVISOR);
+export const requireStaff = requireRole(Role.ADMIN, Role.SUPERVISOR, Role.CREDIT_OFFICER);
+```
+
+<Warning>
+  Routes protected by `requireAdmin` are only accessible to administrators. Attempts by other roles will result in a 403 Forbidden response.
+</Warning>
+
+## Data Access Scope
+
+### Admin
+- **Full visibility**: Can access all data across all unions, members, and loans
+- **No restrictions**: Bypasses all ownership checks
+
+### Supervisor
+- **Supervised territory**: Can access data for all Credit Officers under their supervision
+- **Hierarchical access**: Sees consolidated data from their team
+- **Approval authority**: Can approve/reject loans from supervised officers
+
+### Credit Officer
+- **Assigned unions only**: Can only access unions assigned to them via `creditOfficerId`
+- **Union members**: Can only see members belonging to their assigned unions
+- **Own loans**: Can only view and manage loans they created or are assigned to
+
+## Authentication & Authorization Flow
+
+1. **Authentication**: User identity is verified via JWT token or Supabase OAuth
+2. **Role Check**: User's role is loaded from the `User.role` field
+3. **Authorization**: Middleware checks if user's role is allowed for the endpoint
+4. **Data Filtering**: Controllers filter data based on role and ownership
+
+## Explore Role Details
+
+<CardGroup cols={3}>
+  <Card title="Admin" icon="crown" href="/roles/admin">
+    Full system access with user management, system configuration, and global oversight
+  </Card>
+  <Card title="Supervisor" icon="user-tie" href="/roles/supervisor">
+    Team management, loan approval, and performance monitoring
+  </Card>
+  <Card title="Credit Officer" icon="briefcase" href="/roles/credit-officer">
+    Day-to-day operations, member management, and loan processing
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Principle of Least Privilege">
+    Always assign users the minimum role required for their job function. Don't give Credit Officers supervisor access just for convenience.
+  </Accordion>
+  
+  <Accordion title="Supervisor Assignment">
+    When creating Credit Officers, always set their `supervisorId` to establish the reporting relationship. This enables proper oversight and reporting.
+  </Accordion>
+  
+  <Accordion title="Union Assignment">
+    Ensure unions are properly assigned to Credit Officers through the `creditOfficerId` field. This determines data access scope.
+  </Accordion>
+  
+  <Accordion title="Regular Audits">
+    Use the AuditLog model to track sensitive operations like user creation, role changes, and loan approvals.
+  </Accordion>
+</AccordionGroup>

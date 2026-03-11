@@ -1,0 +1,377 @@
+---
+title: 'Backup & Restore'
+description: 'Automated backups, manual exports, and point-in-time recovery for data protection'
+icon: 'floppy-disk'
+---
+
+## Overview
+
+Millennium Potters uses a multi-layered backup strategy combining CockroachDB's native backups with application-level exports to Cloudinary.
+
+## Backup Types
+
+### 1. CockroachDB Automatic Backups
+
+**Production database backups** (managed by CockroachDB Serverless):
+- **Frequency**: Hourly
+- **Retention**: 30 days
+- **Type**: Full database snapshots
+- **Location**: CockroachDB managed storage
+- **Recovery**: Point-in-Time Recovery (PITR)
+
+<Note>
+These backups are automatic and require no manual intervention. They protect against database-level failures.
+</Note>
+
+### 2. Application-Level Backups
+
+The backend API provides manual backup creation with flexible options:
+
+```http
+POST /api/backup/create
+Content-Type: application/json
+Authorization: Bearer YOUR_ADMIN_TOKEN
+
+{
+  "includeAuditLogs": false,
+  "includeSessions": false,
+  "location": "cloud"
+}
+```
+
+**Parameters:**
+- `includeAuditLogs`: Include audit log entries (default: `false`)
+- `includeSessions`: Include active user sessions (default: `false`)
+- `location`: `"local"`, `"cloud"`, or `"both"` (default: `"local"`)
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "backupId": "clx1234567890",
+    "filename": "backup_2026-03-11T10-30-15-000Z.json",
+    "downloadUrl": "https://res.cloudinary.com/..."
+  },
+  "message": "Backup created successfully"
+}
+```
+
+<Warning>
+**Admin access required** - All backup endpoints require authentication and the ADMIN role (`backend/src/routes/backup.routes.ts:9-10`).
+</Warning>
+
+## Backup Operations
+
+### List All Backups
+
+```http
+GET /api/backup/list
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "clx1234567890",
+      "filename": "backup_2026-03-11T10-30-15-000Z.json",
+      "fileSize": 2457600,
+      "location": "cloud",
+      "cloudinaryUrl": "https://res.cloudinary.com/...",
+      "type": "manual",
+      "status": "completed",
+      "recordCounts": {
+        "users": 25,
+        "unions": 10,
+        "loans": 150,
+        "repayments": 450
+      },
+      "createdAt": "2026-03-11T10:30:15.000Z",
+      "createdBy": "clxADMIN123"
+    }
+  ]
+}
+```
+
+### Download a Backup
+
+```http
+GET /api/backup/download/:id
+```
+
+**Behavior:**
+- If stored in **Cloudinary**: Redirects to the cloud URL
+- If stored **locally**: Streams the file directly
+
+Implementation: `backend/src/controllers/backup.controller.ts:53-78`
+
+### Delete a Backup
+
+```http
+DELETE /api/backup/:id
+```
+
+<Warning>
+This action is irreversible. Deleted backups cannot be recovered unless they exist in multiple locations.
+</Warning>
+
+## Restore Operations
+
+### Restore from Backup File
+
+```http
+POST /api/backup/restore
+Content-Type: application/json
+
+{
+  "backupData": {
+    "metadata": {
+      "version": "1.0",
+      "timestamp": "2026-03-11T10:30:15.000Z"
+    },
+    "data": {
+      "users": [...],
+      "unions": [...],
+      "loans": [...]
+    }
+  }
+}
+```
+
+**Important Notes:**
+- System must be in [maintenance mode](/deployment/maintenance-mode) during restore
+- All users will be logged out after restore
+- The restore process validates backup format before proceeding
+
+Implementation: `backend/src/controllers/backup.controller.ts:108-132`
+
+### System Reset (Emergency)
+
+```http
+POST /api/backup/reset
+Content-Type: application/json
+
+{
+  "confirmationToken": "DELETE"
+}
+```
+
+<Warning>
+**DESTRUCTIVE OPERATION** - This wipes all data and creates a fresh SuperAdmin account:
+- **Username**: `SuperAdmin`
+- **Password**: `SecurePassword123`
+
+Requires exact confirmation token: `"DELETE"`
+</Warning>
+
+## Point-in-Time Recovery (PITR)
+
+### CockroachDB PITR
+
+Restore to any point within the last 30 days:
+
+```sql
+-- Restore entire database to 2 hours ago
+RESTORE DATABASE millenium_potters 
+FROM LATEST IN 's3://your-backup-bucket/backups/' 
+AS OF SYSTEM TIME '-2h';
+```
+
+```sql
+-- Restore specific table to exact timestamp
+RESTORE TABLE millenium_potters.loans 
+FROM LATEST IN 's3://your-backup-bucket/backups/' 
+AS OF SYSTEM TIME '2026-03-11 08:00:00';
+```
+
+**When to use PITR:**
+- Accidental data deletion
+- Incorrect bulk updates
+- Rollback after failed migration
+- Recovery from data corruption
+
+### pg_dump Method (Manual Backups)
+
+Following the documented deployment procedures:
+
+```bash
+# Create backup
+pg_dump "[PROD_CONNECTION_STRING]" \
+  --no-owner --no-acl \
+  > prod_backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Restore full backup
+psql "[PROD_CONNECTION_STRING]" < prod_backup_20260311_103015.sql
+
+# Restore specific table
+grep -A 1000 "COPY public.User" prod_backup.sql | head -n 500 > user_table_only.sql
+psql "[PROD_CONNECTION_STRING]" < user_table_only.sql
+```
+
+<Note>
+No format conversion needed - `pg_dump` produces PostgreSQL-compatible SQL that works directly with CockroachDB.
+</Note>
+
+## Backup Schedule Settings
+
+### Get Schedule Configuration
+
+```http
+GET /api/backup/schedule
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "frequency": "daily",
+    "location": "cloud",
+    "retentionDays": 30,
+    "includeAuditLogs": false,
+    "includeSessions": false,
+    "lastBackupAt": "2026-03-11T02:00:00.000Z",
+    "nextBackupAt": "2026-03-12T02:00:00.000Z"
+  }
+}
+```
+
+### Update Schedule
+
+```http
+PUT /api/backup/schedule
+Content-Type: application/json
+
+{
+  "frequency": "daily",
+  "location": "both",
+  "retentionDays": 60,
+  "includeAuditLogs": true,
+  "includeSessions": false
+}
+```
+
+**Frequency options:**
+- `"disabled"`: No automatic backups
+- `"daily"`: Once per day at 2 AM
+- `"weekly"`: Every Sunday at 2 AM
+- `"monthly"`: First day of month at 2 AM
+
+Database schema: `backend/prisma/schema.prisma:661-673`
+
+## Cloudinary Storage
+
+**Application-level backups** are exported to Cloudinary:
+- **Format**: JSON
+- **Compression**: Enabled for files > 1MB
+- **Access**: Authenticated URLs with expiration
+- **Retention**: Based on schedule settings (default 30 days)
+
+**Storage location pattern:**
+```
+res.cloudinary.com/<cloud_name>/raw/upload/backups/backup_<timestamp>.json
+```
+
+## Backup Verification
+
+Before relying on any backup, verify its integrity:
+
+<Steps>
+  <Step title="Check file size">
+    Ensure the backup file is not empty or suspiciously small. A typical backup should be several MB.
+  </Step>
+  
+  <Step title="Validate JSON structure">
+    For application backups, verify the JSON parses correctly:
+    ```bash
+    cat backup.json | jq '.metadata'
+    ```
+  </Step>
+  
+  <Step title="Check record counts">
+    Compare record counts in backup metadata to expected values:
+    ```json
+    {
+      "recordCounts": {
+        "users": 25,
+        "unions": 10,
+        "loans": 150
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Test restore in staging">
+    Always test restore procedures in a non-production environment first.
+  </Step>
+</Steps>
+
+## Dependency Checking
+
+Before deleting entities, check for dependencies:
+
+```http
+GET /api/backup/dependencies/:entityType/:entityId
+```
+
+**Example:**
+```http
+GET /api/backup/dependencies/union/clx1234567890
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "canDelete": false,
+    "dependencies": {
+      "loans": 5,
+      "unionMembers": 12
+    },
+    "message": "Cannot delete: 5 active loans and 12 members depend on this union"
+  }
+}
+```
+
+**Supported entity types:**
+- `user`
+- `union`
+- `unionMember`
+- `loanType`
+
+Implementation: `backend/src/controllers/backup.controller.ts:212-230`
+
+## Backup Best Practices
+
+<Check>
+**Enable automatic backups** - Set frequency to at least `"daily"` with cloud storage
+</Check>
+
+<Check>
+**Test restore procedures regularly** - Schedule quarterly restore drills
+</Check>
+
+<Check>
+**Store backups off-site** - Use Cloudinary (`"cloud"`) or `"both"` locations
+</Check>
+
+<Check>
+**Document restore procedures** - Keep runbooks updated with connection strings and commands
+</Check>
+
+<Check>
+**Monitor backup jobs** - Check `BackupRecord` status field for failures
+</Check>
+
+<Check>
+**Verify before major changes** - Always create a manual backup before schema migrations or data transformations
+</Check>
+
+## Related Documentation
+
+- [Maintenance Mode](/deployment/maintenance-mode) - Lock system during restore
+- [Monitoring](/deployment/monitoring) - Track backup job success
+- 

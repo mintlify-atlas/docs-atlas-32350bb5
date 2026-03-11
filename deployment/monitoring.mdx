@@ -1,0 +1,429 @@
+---
+title: 'System Monitoring'
+description: 'Health checks, audit logging, and performance monitoring for production systems'
+icon: 'chart-line'
+---
+
+## Overview
+
+Monitoring ensures system reliability and provides visibility into user actions, performance metrics, and potential issues.
+
+## Health Check Endpoints
+
+The backend provides two health check endpoints for uptime monitoring and load balancer probes.
+
+### Health Check (Detailed)
+
+```http
+GET /api/health
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "status": "healthy",
+    "timestamp": "2026-03-11T10:30:15.000Z",
+    "uptime": 86400.52,
+    "environment": "production",
+    "version": "1.0.0"
+  },
+  "message": "Server is healthy"
+}
+```
+
+**Uptime value**: Process uptime in seconds (via `process.uptime()`)
+
+### Ping (Lightweight)
+
+```http
+GET /api/ping
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "pong",
+    "timestamp": "2026-03-11T10:30:15.000Z"
+  },
+  "message": "Server is alive"
+}
+```
+
+<Note>
+**No authentication required** - Health endpoints are public for keepalive services and load balancers (`backend/src/routes/health.routes.ts:6`).
+</Note>
+
+**Implementation**: `backend/src/controllers/health.controller.ts`
+
+## Audit Logging
+
+All critical user actions are automatically logged to the `AuditLog` table.
+
+### Logged Actions
+
+**Settings changes:**
+- `COMPANY_SETTINGS_UPDATED`
+- `EMAIL_SETTINGS_UPDATED`
+- `GENERAL_SETTINGS_UPDATED`
+- `SYSTEM_SETTINGS_UPDATED`
+- `MAINTENANCE_MODE_TOGGLED`
+- `PASSWORD_CHANGED`
+
+**Data operations:**
+- `LOAN_CREATED`, `LOAN_UPDATED`, `LOAN_DELETED`
+- `UNION_CREATED`, `UNION_UPDATED`, `UNION_DELETED`
+- `USER_CREATED`, `USER_UPDATED`, `USER_DELETED`
+- `REPAYMENT_RECORDED`
+
+**Implemented via middleware**: `backend/src/middlewares/audit.middleware.ts`
+
+### Query Audit Logs
+
+```http
+GET /api/audit-logs?page=1&limit=20&action=MAINTENANCE_MODE_TOGGLED
+```
+
+**Query parameters:**
+- `page`: Page number (default: 1)
+- `limit`: Results per page (default: 20)
+- `entityName`: Filter by entity type (e.g., `"User"`, `"Loan"`)
+- `entityId`: Filter by specific record ID
+- `actorUserId`: Filter by user who performed action
+- `action`: Filter by action type
+- `search`: Text search in metadata
+- `dateFrom`: Filter from date (ISO 8601)
+- `dateTo`: Filter to date (ISO 8601)
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "clx1234567890",
+      "actorUserId": "clxADMIN123",
+      "actor": {
+        "email": "admin@example.com",
+        "firstName": "John",
+        "lastName": "Doe"
+      },
+      "action": "MAINTENANCE_MODE_TOGGLED",
+      "entityName": "Settings",
+      "entityId": "default",
+      "before": { "maintenanceMode": false },
+      "after": { "maintenanceMode": true },
+      "metadata": null,
+      "ipAddress": "192.168.1.100",
+      "userAgent": "Mozilla/5.0...",
+      "createdAt": "2026-03-11T10:30:15.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 1,
+    "totalPages": 1
+  }
+}
+```
+
+### Get Audit Log by ID
+
+```http
+GET /api/audit-logs/:id
+```
+
+### Get Entity Audit Trail
+
+View complete history for a specific record:
+
+```http
+GET /api/audit-logs/entity/:entityName/:entityId
+```
+
+**Example:**
+```http
+GET /api/audit-logs/entity/Loan/clxLOAN123
+```
+
+**Use case**: Track all changes made to a specific loan, user, or union.
+
+**Implementation**: `backend/src/controllers/auditLog.controller.ts:57-82`
+
+## AuditLog Database Schema
+
+```prisma
+model AuditLog {
+  id          String  @id @default(cuid())
+  actorUserId String?
+  actor       User?   @relation("ActorLogs", fields: [actorUserId], references: [id])
+
+  action     String // e.g. LOAN_CREATED, CUSTOMER_REASSIGNED
+  entityName String // e.g. Loan, User, Repayment
+  entityId   String // target id
+
+  before   Json?
+  after    Json?
+  metadata Json?
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([entityName, entityId])
+  @@index([createdAt])
+  @@index([actorUserId])
+}
+```
+
+Location: `backend/prisma/schema.prisma:524-545`
+
+## User Activity Tracking
+
+The `User` model includes built-in activity tracking:
+
+```prisma
+model User {
+  lastLoginAt    DateTime?
+  lastActivityAt DateTime?
+  loginCount     Int       @default(0)
+  // ...
+}
+```
+
+### Login History
+
+```prisma
+model UserLoginHistory {
+  id            String   @id @default(cuid())
+  userId        String
+  loginAt       DateTime @default(now())
+  ipAddress     String?
+  userAgent     String?
+  success       Boolean  @default(true)
+  failureReason String?
+  // ...
+}
+```
+
+**Query recent logins:**
+```sql
+SELECT * FROM "UserLoginHistory" 
+WHERE "userId" = 'clxUSER123' 
+ORDER BY "loginAt" DESC 
+LIMIT 10;
+```
+
+Location: `backend/prisma/schema.prisma:549-564`
+
+## Performance Monitoring
+
+### Database Connection Pooling
+
+CockroachDB connection pool is configured in the Prisma schema:
+
+```prisma
+datasource db {
+  provider  = "cockroachdb"
+  url       = env("DATABASE_URL")
+  // Connection pooling params:
+  // ?connection_limit=20&pool_timeout=20
+}
+```
+
+**Recommended settings for 50-100 users:**
+- `connection_limit`: 20-30
+- `pool_timeout`: 20 seconds
+
+Location: `backend/prisma/schema.prisma:8-15`
+
+### Server Uptime
+
+Monitor server availability using the health endpoint:
+
+```bash
+# Simple uptime check
+curl -s https://your-api.com/api/health | jq '.data.uptime'
+
+# Output: 86400.52 (seconds)
+```
+
+**Set up monitoring:**
+- **UptimeRobot**: Monitor `/api/ping` every 5 minutes
+- **Pingdom**: Monitor `/api/health` with keyword "healthy"
+- **StatusCake**: HTTP check on `/api/ping` expecting 200 status
+
+### Response Time Monitoring
+
+```bash
+# Measure API response time
+time curl -s https://your-api.com/api/health
+```
+
+**Recommended thresholds:**
+- **Good**: < 200ms
+- **Acceptable**: 200-500ms
+- **Poor**: > 500ms
+
+## Sentry Integration (Optional)
+
+The system is designed for Sentry error tracking integration.
+
+### Environment Setup
+
+Add to `.env`:
+```bash
+SENTRY_DSN=https://your-sentry-dsn@sentry.io/project-id
+SENTRY_ENVIRONMENT=production
+```
+
+### Backend Integration
+
+```typescript
+import * as Sentry from '@sentry/node';
+
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.SENTRY_ENVIRONMENT || 'development',
+    tracesSampleRate: 0.1, // 10% of transactions
+  });
+}
+```
+
+### Error Capture
+
+```typescript
+try {
+  // Critical operation
+} catch (error) {
+  console.error('Operation failed:', error);
+  if (process.env.SENTRY_DSN) {
+    Sentry.captureException(error);
+  }
+  throw error;
+}
+```
+
+<Note>
+Sentry integration is optional but highly recommended for production environments to capture unhandled exceptions and performance issues.
+</Note>
+
+## System Monitoring Recommendations
+
+<Steps>
+  <Step title="Set up uptime monitoring">
+    Use **UptimeRobot** or **Pingdom** to monitor `/api/ping` endpoint every 5 minutes.
+  </Step>
+  
+  <Step title="Configure alerting">
+    Set up email/SMS alerts for:
+    - API downtime > 2 minutes
+    - Response time > 1 second
+    - Database connection failures
+  </Step>
+  
+  <Step title="Monitor disk space">
+    Track local backup storage:
+    ```bash
+    df -h /path/to/backups
+    ```
+  </Step>
+  
+  <Step title="Review audit logs weekly">
+    Check for suspicious activity:
+    ```http
+    GET /api/audit-logs?dateFrom=2026-03-04&dateTo=2026-03-11
+    ```
+  </Step>
+  
+  <Step title="Enable Sentry (Production)">
+    Configure Sentry DSN for error tracking and performance monitoring.
+  </Step>
+  
+  <Step title="Monitor backup jobs">
+    Query `BackupRecord` table for failed backups:
+    ```sql
+    SELECT * FROM backup_records 
+    WHERE status = 'failed' 
+    ORDER BY "createdAt" DESC;
+    ```
+  </Step>
+</Steps>
+
+## Performance Considerations
+
+### Database Indexes
+
+Critical indexes for query performance:
+
+```prisma
+@@index([entityName, entityId])  // AuditLog queries
+@@index([createdAt])              // Time-based filtering
+@@index([actorUserId])            // User activity reports
+@@index([loanId, paidAt])         // Repayment queries
+@@index([status])                 // Loan status filtering
+```
+
+### Audit Log Cleanup
+
+For long-running systems, implement audit log archival:
+
+```sql
+-- Archive logs older than 1 year
+CREATE TABLE audit_log_archive AS 
+SELECT * FROM "AuditLog" 
+WHERE "createdAt" < NOW() - INTERVAL '1 year';
+
+DELETE FROM "AuditLog" 
+WHERE "createdAt" < NOW() - INTERVAL '1 year';
+```
+
+**Recommended retention:**
+- **Active logs**: 1 year
+- **Archived logs**: 7 years (compliance)
+
+### Connection Pool Monitoring
+
+Check active database connections:
+
+```sql
+SHOW SESSIONS;
+```
+
+If connections are exhausted, increase `connection_limit` in `DATABASE_URL`.
+
+## Monitoring Dashboard (Recommended)
+
+Build a simple monitoring dashboard with:
+
+1. **System Health**:
+   - API uptime percentage
+   - Average response time
+   - Active user sessions
+
+2. **Recent Activity**:
+   - Last 10 audit log entries
+   - Recent login attempts
+   - Failed operations
+
+3. **Performance Metrics**:
+   - Database query latency
+   - Backup job status
+   - Cloudinary storage usage
+
+4. **Alerts**:
+   - Failed backups
+   - Maintenance mode status
+   - High error rates
+
+## Related Documentation
+
+- [Maintenance Mode](/deployment/maintenance-mode) - System lockout for safe operations
+- [Backups](/deployment/backups) - Monitor backup job success
+- 

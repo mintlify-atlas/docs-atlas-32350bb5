@@ -1,0 +1,208 @@
+---
+title: 'Maintenance Mode'
+description: 'Enable system lockout for safe deployments and critical updates'
+icon: 'wrench'
+---
+
+## Overview
+
+Maintenance mode locks non-admin users out of the system during deployments, schema migrations, or critical updates. This ensures data consistency and prevents user actions from interfering with system changes.
+
+<Note>
+Only users with the **ADMIN** role can access the system during maintenance mode.
+</Note>
+
+## How It Works
+
+When maintenance mode is enabled:
+- **Admin users**: Full system access continues
+- **All other users** (Supervisors, Credit Officers): Receive a 503 error with message:
+  ```
+  System is currently under maintenance. Please try again later.
+  ```
+
+The check occurs at the authentication middleware level (`backend/src/middlewares/auth.middleware.ts:78-89`).
+
+## API Endpoint
+
+### Get Maintenance Status
+
+```http
+GET /api/settings/maintenance
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "maintenanceMode": false
+  }
+}
+```
+
+### Toggle Maintenance Mode
+
+```http
+PUT /api/settings/maintenance
+Content-Type: application/json
+
+{
+  "enabled": true
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "maintenanceMode": true
+  },
+  "message": "Maintenance mode enabled successfully"
+}
+```
+
+<Warning>
+Only **ADMIN** users can enable/disable maintenance mode. This endpoint is protected by the `requireRole(Role.ADMIN)` middleware.
+</Warning>
+
+## Database Schema
+
+Maintenance mode state is stored in the `CompanySetting` model:
+
+```prisma
+model CompanySetting {
+  id              String   @id
+  maintenanceMode Boolean  @default(false)
+  // ... other fields
+}
+```
+
+Location: `backend/prisma/schema.prisma:366`
+
+## Use Cases
+
+### 1. Safe Schema Migrations
+
+```bash
+# Step 1: Enable maintenance mode via API or UI
+curl -X PUT https://your-api.com/api/settings/maintenance \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": true}'
+
+# Step 2: Run database migration
+npx prisma migrate deploy
+
+# Step 3: Deploy new code
+git push production main
+
+# Step 4: Disable maintenance mode
+curl -X PUT https://your-api.com/api/settings/maintenance \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": false}'
+```
+
+### 2. Emergency System Lockdown
+
+If critical issues are detected:
+1. Enable maintenance mode immediately
+2. Investigate and resolve the issue
+3. Verify system integrity
+4. Disable maintenance mode
+
+### 3. Data Restoration
+
+When restoring from backup:
+1. Enable maintenance mode
+2. Run restore operation (see [Backups](/deployment/backups))
+3. Verify data integrity
+4. Disable maintenance mode
+
+## Implementation Details
+
+### Backend Check Flow
+
+1. **Authentication Middleware** (`auth.middleware.ts:78`):
+   ```typescript
+   // Check maintenance mode (allow admins only)
+   if (user.role !== "ADMIN") {
+     const isMaintenance = await SettingsService.isMaintenanceModeActive();
+     if (isMaintenance) {
+       return ApiResponseUtil.error(
+         res,
+         "System is currently under maintenance. Please try again later.",
+         503
+       );
+     }
+   }
+   ```
+
+2. **Settings Service** (`settings.service.ts:358`):
+   ```typescript
+   static async isMaintenanceModeActive(): Promise<boolean> {
+     const settings = await prisma.companySetting.findFirst({
+       select: { maintenanceMode: true },
+     });
+     return settings?.maintenanceMode ?? false;
+   }
+   ```
+
+### Audit Logging
+
+Maintenance mode toggles are automatically logged via the `auditLog` middleware:
+
+```typescript
+auditLog("MAINTENANCE_MODE_TOGGLED", "Settings")
+```
+
+View audit trail:
+```http
+GET /api/audit-logs?action=MAINTENANCE_MODE_TOGGLED
+```
+
+## Best Practices
+
+<Steps>
+  <Step title="Communicate in advance">
+    Notify users 24-48 hours before scheduled maintenance via email or system announcement.
+  </Step>
+  
+  <Step title="Choose off-peak hours">
+    Enable maintenance mode during periods of lowest user activity (typically late night/early morning).
+  </Step>
+  
+  <Step title="Test in staging first">
+    Always test deployment procedures in a staging environment before production.
+  </Step>
+  
+  <Step title="Monitor actively">
+    Keep the health check endpoint available during maintenance: `GET /api/health`
+  </Step>
+  
+  <Step title="Document the change">
+    Record the reason for maintenance in audit logs or deployment notes.
+  </Step>
+</Steps>
+
+## Frontend Integration
+
+When the frontend receives a 503 response, display a user-friendly maintenance page:
+
+```typescript
+if (error.response?.status === 503) {
+  // Show maintenance banner
+  return {
+    message: "System is under maintenance. We'll be back shortly!",
+    retryAfter: 300 // seconds
+  };
+}
+```
+
+## Related Documentation
+
+- [Backups](/deployment/backups) - Backup and restore procedures
+- [Monitoring](/deployment/monitoring) - System health monitoring
+- 

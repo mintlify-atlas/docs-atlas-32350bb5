@@ -1,0 +1,99 @@
+---
+title: "Logout"
+api: "POST /api/auth/logout"
+description: "End the current user session"
+---
+
+Revokes the current authentication session. This endpoint requires authentication.
+
+## Authentication
+
+This endpoint requires a valid access token in the Authorization header.
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token for authentication
+  
+  Format: `Bearer <access_token>`
+</ParamField>
+
+## Request
+
+No request body is required for this endpoint.
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Response message ("Logout successful")
+</ResponseField>
+
+<ResponseField name="data" type="null">
+  No data is returned on successful logout
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X POST https://api.millenniumpotters.com/api/auth/logout \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "message": "Logout successful",
+  "data": null
+}
+```
+
+## Error Responses
+
+<AccordionGroup>
+  <Accordion title="401 - No Token Provided">
+    Returned when the Authorization header is missing or malformed.
+    ```json
+    {
+      "success": false,
+      "message": "No token provided"
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="401 - Invalid or Expired Session">
+    Returned when the token is invalid or the session has already been revoked.
+    ```json
+    {
+      "success": false,
+      "message": "Invalid or expired session"
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="401 - User Account Inactive">
+    Returned when the user account has been deactivated.
+    ```json
+    {
+      "success": false,
+      "message": "User account is inactive"
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Implementation Notes
+
+- Logout primarily handles local session cleanup
+- For Supabase OAuth sessions, logout is primarily handled on the frontend using the Supabase SDK
+- The endpoint accepts both JWT tokens (email/password auth) and Supabase tokens (Google OAuth)
+- After logout, the access token can no longer be used for authentication
+
+## Related Endpoints
+
+- Use `/api/auth/sessions` to view all active sessions
+- Use `/api/auth/sessions/:sessionId` to revoke specific sessions
+- Use `/api/auth/sessions/revoke-others` to logout from all other devices

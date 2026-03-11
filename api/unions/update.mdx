@@ -1,0 +1,192 @@
+---
+title: "Update Union"
+api: "PUT /api/unions/:id"
+---
+
+Update an existing union's details.
+
+## Authentication
+
+Required. Include a valid JWT token in the Authorization header.
+
+```bash
+Authorization: Bearer <token>
+```
+
+## Authorization
+
+This endpoint requires **ADMIN** role. Only administrators can update unions.
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier (CUID) of the union to update.
+</ParamField>
+
+## Request Body
+
+All fields are optional. Only include fields you want to update.
+
+<ParamField body="name" type="string" optional>
+  Updated name of the union.
+</ParamField>
+
+<ParamField body="location" type="string" optional>
+  Updated location of the union.
+</ParamField>
+
+<ParamField body="address" type="string" optional>
+  Updated physical address of the union.
+</ParamField>
+
+<ParamField body="creditOfficerId" type="string" optional>
+  ID of a different credit officer to assign this union to. This will trigger a reassignment.
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful.
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success message confirming the union was updated.
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  The updated union object.
+  
+  <Expandable title="Union properties">
+    <ResponseField name="id" type="string">
+      Unique identifier for the union (CUID).
+    </ResponseField>
+    
+    <ResponseField name="name" type="string">
+      Name of the union.
+    </ResponseField>
+    
+    <ResponseField name="location" type="string" optional>
+      Location of the union.
+    </ResponseField>
+    
+    <ResponseField name="address" type="string" optional>
+      Physical address of the union.
+    </ResponseField>
+    
+    <ResponseField name="creditOfficerId" type="string">
+      ID of the credit officer managing this union.
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp of when the union was created.
+    </ResponseField>
+    
+    <ResponseField name="updatedAt" type="string">
+      ISO 8601 timestamp of the last update.
+    </ResponseField>
+    
+    <ResponseField name="deletedAt" type="string" optional>
+      ISO 8601 timestamp of soft deletion (null if not deleted).
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Request
+
+```bash
+curl --request PUT \
+  --url https://api.example.com/api/unions/clx9876543210 \
+  --header 'Authorization: Bearer <token>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "name": "Central Farmers Union - Updated",
+    "location": "Abuja",
+    "address": "456 New Avenue, Wuse, Abuja"
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "message": "Union updated successfully",
+  "data": {
+    "id": "clx9876543210",
+    "name": "Central Farmers Union - Updated",
+    "location": "Abuja",
+    "address": "456 New Avenue, Wuse, Abuja",
+    "creditOfficerId": "clx1234567890",
+    "createdAt": "2024-03-15T10:30:00.000Z",
+    "updatedAt": "2024-03-16T14:20:00.000Z",
+    "deletedAt": null
+  }
+}
+```
+
+## Example: Reassigning Credit Officer
+
+```bash
+curl --request PUT \
+  --url https://api.example.com/api/unions/clx9876543210 \
+  --header 'Authorization: Bearer <token>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "creditOfficerId": "clx0987654321"
+  }'
+```
+
+## Error Responses
+
+<ResponseField name="401 Unauthorized">
+  Missing or invalid authentication token.
+  
+  ```json
+  {
+    "success": false,
+    "message": "Unauthorized"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="403 Forbidden">
+  User does not have required role (ADMIN).
+  
+  ```json
+  {
+    "success": false,
+    "message": "Access denied. Admin privileges required."
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="404 Not Found">
+  Union with the specified ID does not exist.
+  
+  ```json
+  {
+    "success": false,
+    "message": "Union not found"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="400 Bad Request">
+  Invalid request data or validation error.
+  
+  ```json
+  {
+    "success": false,
+    "message": "Failed to update union"
+  }
+  ```
+</ResponseField>
+
+## Audit Log
+
+This operation creates an audit log entry with action `UNION_UPDATED` for tracking purposes.
+
+## Related Endpoints
+
+- For reassigning a union with a documented reason, use [POST /api/unions/:unionId/assign](/api/unions/assign)
+- To view union assignment history, check the UnionAssignmentHistory records via audit logs

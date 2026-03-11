@@ -1,0 +1,759 @@
+---
+title: "Loan Management"
+description: "Complete lifecycle from application to disbursement, repayment tracking, and completion"
+icon: "hand-holding-dollar"
+---
+
+## Overview
+
+The Loan Management system handles the complete lifecycle of microfinance loans, from initial application through approval, disbursement, repayment tracking, and final closure.
+
+<Info>
+  Loans are always associated with both a union member (borrower) and a union. The loan inherits the credit officer from the union.
+</Info>
+
+## Loan Data Model
+
+From the Prisma schema:
+
+```prisma
+model Loan {
+  id            String      @id @default(cuid())
+  loanNumber    String      @unique  // Auto-generated unique identifier
+  
+  // Borrower and Union
+  unionMemberId String
+  unionMember   UnionMember
+  unionId       String
+  union         Union
+  
+  // Loan Details
+  loanTypeId        String?
+  loanType          LoanType?
+  principalAmount   Decimal   @db.Decimal(14, 2)
+  currencyCode      String    @default("NGN")
+  
+  // Terms
+  termCount         Int       // Duration count
+  termUnit          TermUnit  // DAY, WEEK, or MONTH
+  startDate         DateTime
+  endDate           DateTime?
+  
+  // Fees
+  processingFeeAmount    Decimal  @db.Decimal(14, 2)
+  processingFeeCollected Boolean  @default(false)
+  penaltyFeePerDayAmount Decimal  @db.Decimal(14, 2)
+  
+  // Status
+  status            LoanStatus @default(DRAFT)
+  
+  // Assignment
+  createdByUserId   String
+  createdByUser     User
+  assignedOfficerId String?
+  assignedOfficer   User?
+  
+  // Dates
+  disbursedAt DateTime?
+  closedAt    DateTime?
+  notes       String?
+  
+  // Relations
+  scheduleItems RepaymentScheduleItem[]
+  repayments    Repayment[]
+  documents     LoanDocument[]
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+```
+
+## Loan Status Lifecycle
+
+Loans move through several statuses:
+
+```prisma
+enum LoanStatus {
+  DRAFT              // Just created, not submitted
+  PENDING_APPROVAL   // Submitted, awaiting supervisor
+  APPROVED           // Approved, ready for disbursement
+  ACTIVE             // Disbursed and being repaid
+  COMPLETED          // Fully repaid and closed
+  DEFAULTED          // Borrower failed to repay
+  WRITTEN_OFF        // Bad debt, removed from books
+  CANCELED           // Canceled before disbursement
+}
+```
+
+### Status Flow Diagram
+
+<Steps>
+  <Step title="DRAFT">
+    Loan application created but not yet submitted
+  </Step>
+  <Step title="PENDING_APPROVAL">
+    Submitted to supervisor for review
+  </Step>
+  <Step title="APPROVED">
+    Supervisor approved, ready to disburse funds
+  </Step>
+  <Step title="ACTIVE">
+    Money disbursed, repayments in progress
+  </Step>
+  <Step title="COMPLETED">
+    All payments received, loan closed successfully
+  </Step>
+</Steps>
+
+### Alternative Outcomes
+
+<CardGroup cols={3}>
+  <Card title="DEFAULTED" icon="exclamation-triangle">
+    Borrower stopped paying and is significantly overdue
+  </Card>
+  <Card title="WRITTEN_OFF" icon="file-x">
+    Bad debt that will not be recovered
+  </Card>
+  <Card title="CANCELED" icon="ban">
+    Application withdrawn before disbursement
+  </Card>
+</CardGroup>
+
+## Creating a New Loan Application
+
+### Prerequisites
+
+<Warning>
+  Before creating a loan:
+  - Union member must exist and be verified
+  - Member must belong to a union
+  - Loan type (optional) should be configured
+</Warning>
+
+### Creation Process
+
+<Steps>
+  <Step title="Start Application">
+    Navigate to **Business Management** → **Loans** and click **+ Add New Loan**
+  </Step>
+  
+  <Step title="Select Borrower">
+    1. **Choose Union** from dropdown
+    2. **Select Union Member** (only verified members appear)
+    3. System auto-fills member details
+  </Step>
+  
+  <Step title="Loan Details">
+    **Required Fields:**
+    - **Loan Type** - Select from configured types
+    - **Principal Amount** - How much to lend (in Naira)
+    - **Interest Rate** - Annual percentage (may auto-fill from loan type)
+    - **Loan Term** - Duration count
+    - **Term Unit** - Days, Weeks, or Months
+    - **Repayment Frequency** - How often payments are due
+    - **Purpose** - Why the loan is needed
+    - **Start Date** - When the loan begins
+  </Step>
+  
+  <Step title="Review Schedule">
+    The system automatically generates:
+    - Complete repayment schedule
+    - Payment due dates
+    - Principal and interest breakdown
+    - Total amount to be repaid
+  </Step>
+  
+  <Step title="Submit or Save">
+    **Two options:**
+    - **Save as Draft** - Saves but doesn't submit (status: DRAFT)
+    - **Submit for Approval** - Sends to supervisor (status: PENDING_APPROVAL)
+  </Step>
+</Steps>
+
+### Term Units Explained
+
+```prisma
+enum TermUnit {
+  DAY    // Daily repayments (e.g., 30 days)
+  WEEK   // Weekly repayments (e.g., 12 weeks)
+  MONTH  // Monthly repayments (e.g., 6 months)
+}
+```
+
+<Accordion title="Example: 6-Month Loan">
+  - **Term Count:** 6
+  - **Term Unit:** MONTH
+  - **Result:** 6 monthly payments over 6 months
+</Accordion>
+
+### API Endpoint
+
+```typescript
+// POST /api/loans
+const createLoan = async (data: {
+  unionMemberId: string;
+  unionId: string;
+  loanTypeId?: string;
+  principalAmount: number;
+  termCount: number;
+  termUnit: 'DAY' | 'WEEK' | 'MONTH';
+  startDate: string;
+  processingFeeAmount: number;
+  penaltyFeePerDayAmount: number;
+  notes?: string;
+}) => {
+  // Creates loan in DRAFT status
+  // Generates repayment schedule
+}
+```
+
+## Viewing All Loans
+
+The Loans page provides comprehensive filtering and viewing:
+
+<CardGroup cols={2}>
+  <Card title="Summary Cards" icon="chart-bar">
+    - Total loans count
+    - Active loans
+    - Pending approvals
+    - Overdue loans
+    - Total disbursed amount
+  </Card>
+  
+  <Card title="Search & Filter" icon="filter">
+    - Search by loan number or borrower
+    - Filter by status
+    - Filter by union
+    - Filter by date range
+    - Filter by amount range
+    - Filter by credit officer
+  </Card>
+  
+  <Card title="Data Table" icon="table">
+    - Loan number
+    - Borrower name
+    - Principal amount
+    - Status badge
+    - Due date
+    - Payment progress
+    - Actions (view, edit, delete)
+  </Card>
+  
+  <Card title="Export Options" icon="download">
+    - Export to Excel
+    - Export to PDF
+    - Copy to clipboard
+    - Filter before export
+  </Card>
+</CardGroup>
+
+### Configurable Columns
+
+<Tip>
+  Click the **Settings** icon to show/hide columns based on your needs
+</Tip>
+
+Available columns:
+- Loan Number
+- Union Member
+- Loan Type
+- Principal Amount
+- Due Today
+- Status
+- Credit Officer
+- Union
+- Overdue Amount
+- Payment Status
+- Actions
+
+## Loan Approval Workflow
+
+<Note>
+  Only **Supervisors** and **Administrators** can approve or reject loan applications
+</Note>
+
+### For Supervisors: Reviewing Pending Loans
+
+<Steps>
+  <Step title="Access Pending Loans">
+    Go to Loans page and filter by **"Pending Approval"** status
+  </Step>
+  
+  <Step title="Review Application">
+    Click on a loan to view:
+    - Borrower information and history
+    - Loan amount and terms
+    - Repayment schedule
+    - Purpose of loan
+    - Credit officer notes
+  </Step>
+  
+  <Step title="Make Decision">
+    **To Approve:**
+    1. Click **Approve** button
+    2. Add approval notes (optional)
+    3. Confirm approval
+    4. Status changes to APPROVED
+    
+    **To Reject:**
+    1. Click **Reject** button
+    2. Enter rejection reason (required)
+    3. Confirm rejection
+    4. Status changes to REJECTED
+  </Step>
+</Steps>
+
+### API Endpoints
+
+```typescript
+// Update loan status
+POST /api/loans/:id/status
+Body: {
+  status: 'APPROVED' | 'REJECTED' | 'CANCELED',
+  notes?: string
+}
+```
+
+## Disbursing Loans
+
+Once approved, loans can be disbursed:
+
+<Steps>
+  <Step title="Open Approved Loan">
+    Find the loan with APPROVED status
+  </Step>
+  
+  <Step title="Click Disburse">
+    Click the **Disburse** button
+  </Step>
+  
+  <Step title="Enter Details">
+    Provide disbursement information:
+    - **Disbursement Date** (defaults to today)
+    - **Payment Method** (Cash, Bank Transfer, Mobile Money, etc.)
+    - **Reference Number** (transaction ID, check number, etc.)
+    - **Notes** (optional)
+  </Step>
+  
+  <Step title="Confirm Disbursement">
+    Click **Confirm Disbursement**
+    
+    Loan status changes to **ACTIVE** and repayment tracking begins
+  </Step>
+</Steps>
+
+<Warning>
+  Once disbursed, you cannot undo the action. Ensure all details are correct before confirming.
+</Warning>
+
+### API Endpoint
+
+```typescript
+// POST /api/loans/:id/disburse
+const disburseLoan = async (loanId: string, data: {
+  disbursedAt?: Date;
+}) => {
+  // Updates status to ACTIVE
+  // Records disbursement date
+  // Activates repayment schedule
+}
+```
+
+## Viewing Loan Details
+
+Click any loan to see comprehensive information:
+
+<Tabs>
+  <Tab title="Overview">
+    - Loan number and status
+    - Borrower details with profile
+    - Principal, interest, and total amounts
+    - Start and end dates
+    - Loan type and terms
+    - Processing and penalty fees
+    - Created by and assigned officer
+  </Tab>
+  
+  <Tab title="Repayment Schedule">
+    Complete payment schedule showing:
+    - Sequence number
+    - Due date
+    - Principal due
+    - Interest due
+    - Total due
+    - Amount paid
+    - Status (Pending, Partial, Paid, Overdue)
+  </Tab>
+  
+  <Tab title="Payment History">
+    All recorded repayments:
+    - Payment date
+    - Amount received
+    - Payment method
+    - Received by (staff)
+    - Reference number
+    - Allocation to schedule items
+  </Tab>
+  
+  <Tab title="Documents">
+    Uploaded loan documents:
+    - Loan agreement
+    - Collateral documents
+    - Supporting files
+    - Verification status
+  </Tab>
+  
+  <Tab title="Status History">
+    Timeline of all status changes:
+    - Status transition
+    - Date and time
+    - Changed by (user)
+    - Notes or reasons
+  </Tab>
+</Tabs>
+
+## Repayment Schedule
+
+The system automatically generates a repayment schedule based on:
+- Principal amount
+- Interest rate
+- Loan term and frequency
+- Start date
+
+### Schedule Model
+
+```prisma
+model RepaymentScheduleItem {
+  id     String @id
+  loanId String
+  loan   Loan
+  
+  sequence     Int       // Payment number (1, 2, 3...)
+  dueDate      DateTime  // When payment is due
+  
+  principalDue Decimal   @db.Decimal(14, 2)
+  interestDue  Decimal   @default(0) @db.Decimal(14, 2)
+  feeDue       Decimal   @default(0) @db.Decimal(14, 2)
+  
+  totalDue     Decimal   @db.Decimal(14, 2)
+  paidAmount   Decimal   @default(0) @db.Decimal(14, 2)
+  
+  status   ScheduleStatus @default(PENDING)
+  closedAt DateTime?
+  
+  allocations RepaymentAllocation[]
+}
+
+enum ScheduleStatus {
+  PENDING  // Not yet paid
+  PARTIAL  // Partially paid
+  PAID     // Fully paid
+  OVERDUE  // Past due date and unpaid
+}
+```
+
+### Schedule Calculation Example
+
+<Accordion title="Example: ₦50,000 loan for 5 months at 10% annual interest">
+  **Loan Details:**
+  - Principal: ₦50,000
+  - Term: 5 months
+  - Annual Interest: 10%
+  - Monthly Interest: 10% / 12 = 0.833%
+  
+  **Monthly Payment Calculation:**
+  - Total with interest: ₦50,000 + (₦50,000 × 0.10 × 5/12) = ₦52,083
+  - Monthly payment: ₦52,083 / 5 = ₦10,417
+  
+  **Schedule:**
+  | Seq | Due Date | Principal | Interest | Total |
+  |-----|----------|-----------|----------|-------|
+  | 1   | Feb 1    | ₦10,000 | ₦417    | ₦10,417 |
+  | 2   | Mar 1    | ₦10,000 | ₦417    | ₦10,417 |
+  | 3   | Apr 1    | ₦10,000 | ₦417    | ₦10,417 |
+  | 4   | May 1    | ₦10,000 | ₦417    | ₦10,417 |
+  | 5   | Jun 1    | ₦10,000 | ₦417    | ₦10,417 |
+</Accordion>
+
+### Regenerating Schedules
+
+<Warning>
+  Only **Administrators** can regenerate loan schedules. This action should only be used to fix calculation errors.
+</Warning>
+
+```typescript
+// POST /api/loans/:loanId/regenerate-schedule
+// Admin only - regenerates payment schedule
+```
+
+## Loan Assignment
+
+Loans can be reassigned to different credit officers:
+
+<Steps>
+  <Step title="Open Loan Details">
+    Navigate to the loan
+  </Step>
+  
+  <Step title="Click Assign">
+    Click **Assign Loan** button
+  </Step>
+  
+  <Step title="Select Officer">
+    Choose the new assigned officer
+  </Step>
+  
+  <Step title="Provide Reason">
+    Enter the reason for reassignment
+  </Step>
+  
+  <Step title="Confirm">
+    Confirm the assignment change
+  </Step>
+</Steps>
+
+<Note>
+  Reassignment changes the `assignedOfficerId` but doesn't change the union or borrower.
+</Note>
+
+## Editing Loans
+
+<Warning>
+  Loans can only be edited while in **DRAFT** or **PENDING_APPROVAL** status. Once disbursed, loans cannot be modified.
+</Warning>
+
+Editable fields:
+- Loan amount (if not yet approved)
+- Terms and duration
+- Interest rate
+- Processing fees
+- Notes
+
+Non-editable after approval:
+- Borrower
+- Union
+- Disbursement date
+- Repayment history
+
+## Deleting Loans
+
+<Warning>
+  Loans can only be deleted if:
+  - Status is DRAFT or CANCELED
+  - No payments have been recorded
+  - No documents are attached
+</Warning>
+
+<Steps>
+  <Step title="Locate Loan">
+    Find the loan in the list
+  </Step>
+  
+  <Step title="Delete Action">
+    Click the **Delete** icon (trash can)
+  </Step>
+  
+  <Step title="Confirm">
+    Review the warning and confirm deletion
+  </Step>
+</Steps>
+
+<Info>
+  Loans are **soft deleted** (marked with `deletedAt`) to maintain audit trail and reporting accuracy.
+</Info>
+
+## Loan Summary and Analytics
+
+Each loan provides summary metrics:
+
+<CardGroup cols={2}>
+  <Card title="Financial Summary">
+    - Principal amount
+    - Total interest
+    - Processing fees
+    - Penalty fees
+    - Total amount due
+    - Total paid to date
+    - Outstanding balance
+  </Card>
+  
+  <Card title="Payment Performance">
+    - Payments on time
+    - Late payments
+    - Missed payments
+    - Completion percentage
+    - Days overdue (if any)
+  </Card>
+  
+  <Card title="Schedule Progress">
+    - Total installments
+    - Paid installments
+    - Pending installments
+    - Overdue installments
+    - Next payment due date
+  </Card>
+  
+  <Card title="Timeline">
+    - Application date
+    - Approval date
+    - Disbursement date
+    - First payment date
+    - Expected completion date
+    - Actual completion date
+  </Card>
+</CardGroup>
+
+### API Endpoint
+
+```typescript
+// GET /api/loans/:id/summary
+const getLoanSummary = async (loanId: string) => {
+  // Returns comprehensive loan metrics
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Application Process" icon="file-check">
+    - Verify member identity before creating loan
+    - Use consistent loan types
+    - Document loan purpose clearly
+    - Review schedule before submission
+  </Card>
+  
+  <Card title="Approval" icon="thumbs-up">
+    - Review borrower's history
+    - Check existing loan performance
+    - Verify ability to repay
+    - Document approval decision
+  </Card>
+  
+  <Card title="Disbursement" icon="coins">
+    - Confirm borrower receipt
+    - Record accurate payment method
+    - Keep transaction references
+    - Disburse only approved loans
+  </Card>
+  
+  <Card title="Monitoring" icon="eye">
+    - Track payment schedules daily
+    - Follow up on overdue payments early
+    - Update loan notes regularly
+    - Communicate with borrowers
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Cannot create loan">
+    **Check:**
+    - Member is verified
+    - Member belongs to a union
+    - All required fields are filled
+    - Amount is within allowed range
+    - You have permission to create loans
+  </Accordion>
+  
+  <Accordion title="Cannot submit for approval">
+    **Verify:**
+    - Loan is in DRAFT status
+    - All required information is complete
+    - Schedule was generated successfully
+    - No validation errors
+  </Accordion>
+  
+  <Accordion title="Cannot disburse loan">
+    **Reasons:**
+    - Loan is not in APPROVED status
+    - You lack disbursement permissions
+    - Member is no longer verified
+    - Technical error - contact support
+  </Accordion>
+  
+  <Accordion title="Schedule not generating">
+    **Possible causes:**
+    - Invalid term count (must be > 0)
+    - Invalid date range
+    - Missing interest rate
+    - System calculation error
+    
+    **Solution:** Contact administrator to regenerate
+  </Accordion>
+  
+  <Accordion title="Cannot edit loan">
+    **Reason:** Loan status doesn't allow editing
+    
+    **Status Rules:**
+    - DRAFT - Fully editable
+    - PENDING_APPROVAL - Limited editing
+    - APPROVED/ACTIVE - Cannot edit
+    - COMPLETED - View only
+  </Accordion>
+</AccordionGroup>
+
+## API Reference
+
+```typescript
+// Get all loans
+GET /api/loans?page=1&limit=20&status=ACTIVE&unionId=xxx&unionMemberId=xxx
+
+// Get loan by ID
+GET /api/loans/:id
+
+// Create loan
+POST /api/loans
+Body: { unionMemberId, unionId, principalAmount, termCount, termUnit, ... }
+
+// Update loan
+PUT /api/loans/:id
+Body: { principalAmount?, termCount?, notes?, ... }
+
+// Update status
+POST /api/loans/:id/status
+Body: { status: 'APPROVED' | 'REJECTED' | 'CANCELED', notes? }
+
+// Disburse loan
+POST /api/loans/:id/disburse
+Body: { disbursedAt? }
+
+// Assign loan
+POST /api/loans/:id/assign
+Body: { assignedOfficerId, reason? }
+
+// Delete loan
+DELETE /api/loans/:id
+
+// Get loan schedule
+GET /api/loans/:id/schedule
+
+// Get loan summary
+GET /api/loans/:id/summary
+
+// Regenerate schedule (Admin)
+POST /api/loans/:loanId/regenerate-schedule
+
+// Generate missing schedules (Admin)
+POST /api/loans/generate-missing-schedules
+```
+
+## Summary
+
+Loan Management provides:
+- ✅ Complete application workflow
+- ✅ Supervisor approval process
+- ✅ Automated schedule generation
+- ✅ Disbursement tracking
+- ✅ 8 distinct status types
+- ✅ Role-based permissions
+- ✅ Comprehensive reporting
+- ✅ Document management
+- ✅ Assignment history
+
+<Card title="Next Steps" icon="arrow-right">
+  - Record [Repayments](/features/repayments) for active loans
+  - Monitor [Repayment Schedules](/features/repayments) for due dates
+  - Generate [Reports](/features/reporting) for portfolio analysis
+</Card>

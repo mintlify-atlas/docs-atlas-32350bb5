@@ -1,0 +1,330 @@
+---
+title: 'List Repayments'
+description: 'Retrieve a paginated list of loan repayments with filtering options'
+---
+
+## Endpoint
+
+```
+GET /api/repayments
+```
+
+Retrieve a list of repayment records with optional filters for loan, date range, payment method, and receiving officer. Results are paginated and include repayment allocations showing how payments were distributed across schedule items.
+
+## Authentication
+
+Requires authentication with `Bearer` token. All staff roles (Admin, Supervisor, Credit Officer) can access this endpoint.
+
+## Query Parameters
+
+<ParamField query="page" type="number" default="1">
+  Page number for pagination
+</ParamField>
+
+<ParamField query="limit" type="number" default="20">
+  Number of records per page (max 100)
+</ParamField>
+
+<ParamField query="loanId" type="string">
+  Filter repayments for a specific loan by loan ID
+</ParamField>
+
+<ParamField query="receivedByUserId" type="string">
+  Filter repayments received by a specific user/officer
+</ParamField>
+
+<ParamField query="method" type="string">
+  Filter by payment method. Options:
+  - `CASH` - Cash payment
+  - `TRANSFER` - Bank transfer
+  - `POS` - Point of sale terminal
+  - `MOBILE` - Mobile money (e.g., M-Pesa)
+  - `USSD` - USSD payment
+  - `OTHER` - Other payment methods
+</ParamField>
+
+<ParamField query="dateFrom" type="string">
+  Filter repayments from this date (ISO 8601 format: YYYY-MM-DD)
+</ParamField>
+
+<ParamField query="dateTo" type="string">
+  Filter repayments up to this date (ISO 8601 format: YYYY-MM-DD)
+</ParamField>
+
+## Role-Based Access
+
+- **Admin**: Can view all repayments across the system
+- **Supervisor**: Can view all repayments across all unions
+- **Credit Officer**: Can only view repayments for loans in their assigned unions
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Response message (e.g., "Repayments retrieved successfully")
+</ResponseField>
+
+<ResponseField name="data" type="array">
+  Array of repayment objects
+  
+  <ResponseField name="id" type="string">
+    Unique identifier for the repayment record
+  </ResponseField>
+  
+  <ResponseField name="loanId" type="string">
+    ID of the loan this repayment is for
+  </ResponseField>
+  
+  <ResponseField name="amount" type="number">
+    Payment amount received
+  </ResponseField>
+  
+  <ResponseField name="currencyCode" type="string" default="NGN">
+    Currency code for the payment
+  </ResponseField>
+  
+  <ResponseField name="paidAt" type="string">
+    Date and time when payment was made (ISO 8601)
+  </ResponseField>
+  
+  <ResponseField name="method" type="string">
+    Payment method used (CASH, TRANSFER, POS, MOBILE, USSD, OTHER)
+  </ResponseField>
+  
+  <ResponseField name="reference" type="string">
+    Optional payment reference number or transaction ID
+  </ResponseField>
+  
+  <ResponseField name="notes" type="string">
+    Optional notes about the payment
+  </ResponseField>
+  
+  <ResponseField name="receivedByUserId" type="string">
+    ID of the user who recorded this repayment
+  </ResponseField>
+  
+  <ResponseField name="loan" type="object">
+    Basic loan information
+    
+    <ResponseField name="id" type="string">
+      Loan ID
+    </ResponseField>
+    
+    <ResponseField name="loanNumber" type="string">
+      Unique loan number
+    </ResponseField>
+    
+    <ResponseField name="unionId" type="string">
+      ID of the union this loan belongs to
+    </ResponseField>
+    
+    <ResponseField name="unionMember" type="object">
+      Union member (borrower) details
+      
+      <ResponseField name="id" type="string">
+        Member ID
+      </ResponseField>
+      
+      <ResponseField name="code" type="string">
+        Member code
+      </ResponseField>
+      
+      <ResponseField name="firstName" type="string">
+        Member's first name
+      </ResponseField>
+      
+      <ResponseField name="lastName" type="string">
+        Member's last name
+      </ResponseField>
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="receivedBy" type="object">
+    Officer who recorded the repayment
+    
+    <ResponseField name="id" type="string">
+      User ID
+    </ResponseField>
+    
+    <ResponseField name="email" type="string">
+      User email
+    </ResponseField>
+    
+    <ResponseField name="role" type="string">
+      User role (ADMIN, SUPERVISOR, CREDIT_OFFICER)
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="allocations" type="array">
+    Array showing how this payment was allocated to repayment schedule items
+    
+    <ResponseField name="id" type="string">
+      Allocation ID
+    </ResponseField>
+    
+    <ResponseField name="amount" type="number">
+      Amount allocated to this schedule item
+    </ResponseField>
+    
+    <ResponseField name="scheduleItem" type="object">
+      Repayment schedule item that received this allocation
+      
+      <ResponseField name="id" type="string">
+        Schedule item ID
+      </ResponseField>
+      
+      <ResponseField name="sequence" type="number">
+        Installment number (1, 2, 3, etc.)
+      </ResponseField>
+      
+      <ResponseField name="dueDate" type="string">
+        Due date for this installment
+      </ResponseField>
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="createdAt" type="string">
+    Timestamp when repayment record was created
+  </ResponseField>
+  
+  <ResponseField name="updatedAt" type="string">
+    Timestamp when repayment record was last updated
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="pagination" type="object">
+  Pagination information
+  
+  <ResponseField name="page" type="number">
+    Current page number
+  </ResponseField>
+  
+  <ResponseField name="limit" type="number">
+    Records per page
+  </ResponseField>
+  
+  <ResponseField name="total" type="number">
+    Total number of repayments matching the filters
+  </ResponseField>
+  
+  <ResponseField name="totalPages" type="number">
+    Total number of pages
+  </ResponseField>
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X GET 'https://api.example.com/api/repayments?page=1&limit=20&method=CASH&dateFrom=2024-01-01&dateTo=2024-01-31' \
+  -H 'Authorization: Bearer YOUR_TOKEN'
+```
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "message": "Repayments retrieved successfully",
+  "data": [
+    {
+      "id": "cm123abc",
+      "loanId": "ln456def",
+      "amount": 5000,
+      "currencyCode": "NGN",
+      "paidAt": "2024-01-15T10:30:00.000Z",
+      "method": "CASH",
+      "reference": "RCP-2024-001",
+      "notes": "Payment received at branch office",
+      "receivedByUserId": "usr789ghi",
+      "loan": {
+        "id": "ln456def",
+        "loanNumber": "LN-2024-0123",
+        "unionId": "un001xyz",
+        "unionMember": {
+          "id": "mem001",
+          "code": "M-001",
+          "firstName": "John",
+          "lastName": "Doe"
+        }
+      },
+      "receivedBy": {
+        "id": "usr789ghi",
+        "email": "officer@example.com",
+        "role": "CREDIT_OFFICER"
+      },
+      "allocations": [
+        {
+          "id": "alloc001",
+          "amount": 3000,
+          "scheduleItem": {
+            "id": "sch001",
+            "sequence": 1,
+            "dueDate": "2024-01-10T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "alloc002",
+          "amount": 2000,
+          "scheduleItem": {
+            "id": "sch002",
+            "sequence": 2,
+            "dueDate": "2024-02-10T00:00:00.000Z"
+          }
+        }
+      ],
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "updatedAt": "2024-01-15T10:30:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 45,
+    "totalPages": 3
+  }
+}
+```
+
+## Payment Allocation
+
+When a repayment is recorded, the system automatically allocates the payment to pending repayment schedule items:
+
+1. **Sequential Allocation**: Payments are allocated to schedule items in order of their due dates (oldest first)
+2. **Partial Payments**: If the payment amount is less than what's due, it's recorded as a partial payment and the schedule item status becomes `PARTIAL`
+3. **Excess Payments**: If the payment exceeds what's due for the current item, the remaining amount is applied to the next pending items
+4. **Allocations Array**: The `allocations` field shows exactly how each payment was distributed across schedule items
+
+## Error Responses
+
+<ResponseField name="400" type="object">
+  Bad request - invalid query parameters
+  ```json
+  {
+    "success": false,
+    "message": "Invalid date format for dateFrom"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="401" type="object">
+  Unauthorized - missing or invalid authentication token
+  ```json
+  {
+    "success": false,
+    "message": "Authentication required"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="403" type="object">
+  Forbidden - insufficient permissions
+  ```json
+  {
+    "success": false,
+    "message": "You do not have permission to view these repayments"
+  }
+  ```
+</ResponseField>

@@ -1,0 +1,248 @@
+---
+title: "Create Loan"
+api: "POST /api/loans"
+description: "Create a new loan for a union member with automatic repayment schedule generation"
+---
+
+## Authentication
+
+Requires authentication. Available to: `ADMIN`, `CREDIT_OFFICER`
+
+## Request Body
+
+<ParamField body="unionMemberId" type="string" required>
+  ID of the union member receiving the loan
+</ParamField>
+
+<ParamField body="loanTypeId" type="string" optional>
+  ID of the loan type. If provided, the loan amount will be validated against loan type limits
+</ParamField>
+
+<ParamField body="principalAmount" type="number" required>
+  Principal loan amount (must be positive)
+</ParamField>
+
+<ParamField body="termCount" type="integer" required>
+  Number of repayment terms (must be positive integer)
+</ParamField>
+
+<ParamField body="termUnit" type="string" required>
+  Unit of the repayment term. Available values:
+  - `DAY`
+  - `WEEK`
+  - `MONTH`
+</ParamField>
+
+<ParamField body="startDate" type="datetime" required>
+  Loan start date (ISO 8601 format)
+</ParamField>
+
+<ParamField body="processingFeeAmount" type="number" required>
+  Processing fee amount (minimum: 0)
+</ParamField>
+
+<ParamField body="penaltyFeePerDayAmount" type="number" required>
+  Penalty fee charged per day for late payments (minimum: 0)
+</ParamField>
+
+<ParamField body="interestRate" type="number" optional>
+  Annual interest rate as a percentage (0-100). Defaults to 0 if not provided
+</ParamField>
+
+<ParamField body="notes" type="string" optional>
+  Additional notes about the loan
+</ParamField>
+
+<ParamField body="assignedOfficerId" type="string" optional>
+  ID of the credit officer to assign to this loan
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Response message ("Loan created successfully")
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Created loan object with all fields (see List Loans for field descriptions)
+</ResponseField>
+
+## Behavior
+
+### Initial Status
+
+The initial loan status depends on the user's role:
+- **ADMIN**: Loans are created with `ACTIVE` status (immediately active)
+- **CREDIT_OFFICER**: Loans are created with `PENDING_APPROVAL` status (requires approval)
+- Other roles: Loans are created with `DRAFT` status
+
+### Loan Number Generation
+
+Loan numbers are automatically generated in the format `LN00000001`, incrementing sequentially.
+
+### Repayment Schedule Generation
+
+A repayment schedule is automatically generated when the loan is created. The schedule divides the principal amount and any interest evenly across all repayment terms.
+
+Schedule calculation:
+- **Principal per payment**: `principalAmount / termCount`
+- **Interest calculation**: `principalAmount * (interestRate / 100) * yearFraction`
+- **Total per payment**: `principalPerPayment + interestPerPayment`
+
+Where `yearFraction` is calculated based on the term unit:
+- DAY: `termCount / 365`
+- WEEK: `(termCount * 7) / 365`
+- MONTH: `termCount / 12`
+
+### Validation Rules
+
+1. **Union member must exist** and not be deleted
+2. **Loan type validation** (if provided):
+   - Must exist and be active
+   - Principal amount must be within loan type min/max limits
+3. **No active loans**: Union member cannot have another loan with status:
+   - `ACTIVE`
+   - `PENDING_APPROVAL`
+   - `APPROVED`
+   - `DEFAULTED`
+   
+   Exception: If an existing loan is fully paid but not marked as COMPLETED, it will be auto-completed.
+
+<RequestExample>
+
+```bash cURL
+curl -X POST "https://api.example.com/api/loans" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "unionMemberId": "cm4xyz789",
+    "loanTypeId": "cm4type1",
+    "principalAmount": 50000,
+    "termCount": 6,
+    "termUnit": "MONTH",
+    "startDate": "2026-03-15T00:00:00.000Z",
+    "processingFeeAmount": 1000,
+    "penaltyFeePerDayAmount": 100,
+    "interestRate": 0,
+    "notes": "Business expansion loan",
+    "assignedOfficerId": "cm4officer1"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.example.com/api/loans', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    unionMemberId: 'cm4xyz789',
+    loanTypeId: 'cm4type1',
+    principalAmount: 50000,
+    termCount: 6,
+    termUnit: 'MONTH',
+    startDate: '2026-03-15T00:00:00.000Z',
+    processingFeeAmount: 1000,
+    penaltyFeePerDayAmount: 100,
+    interestRate: 0,
+    notes: 'Business expansion loan',
+    assignedOfficerId: 'cm4officer1'
+  })
+});
+
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://api.example.com/api/loans',
+    headers={
+        'Authorization': 'Bearer YOUR_TOKEN',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'unionMemberId': 'cm4xyz789',
+        'loanTypeId': 'cm4type1',
+        'principalAmount': 50000,
+        'termCount': 6,
+        'termUnit': 'MONTH',
+        'startDate': '2026-03-15T00:00:00.000Z',
+        'processingFeeAmount': 1000,
+        'penaltyFeePerDayAmount': 100,
+        'interestRate': 0,
+        'notes': 'Business expansion loan',
+        'assignedOfficerId': 'cm4officer1'
+    }
+)
+
+data = response.json()
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json Response
+{
+  "success": true,
+  "message": "Loan created successfully",
+  "data": {
+    "id": "cm4newloan1",
+    "loanNumber": "LN00000042",
+    "unionMemberId": "cm4xyz789",
+    "unionId": "cm4union1",
+    "loanTypeId": "cm4type1",
+    "principalAmount": 50000.00,
+    "currencyCode": "NGN",
+    "termCount": 6,
+    "termUnit": "MONTH",
+    "startDate": "2026-03-15T00:00:00.000Z",
+    "endDate": "2026-09-15T00:00:00.000Z",
+    "processingFeeAmount": 1000.00,
+    "processingFeeCollected": false,
+    "penaltyFeePerDayAmount": 100.00,
+    "status": "PENDING_APPROVAL",
+    "createdByUserId": "cm4officer1",
+    "assignedOfficerId": "cm4officer1",
+    "disbursedAt": null,
+    "closedAt": null,
+    "notes": "Business expansion loan",
+    "unionMember": {
+      "id": "cm4xyz789",
+      "code": "UM001",
+      "firstName": "John",
+      "lastName": "Doe",
+      "email": "john.doe@example.com",
+      "phone": "+2341234567890",
+      "unionId": "cm4union1"
+    },
+    "union": {
+      "id": "cm4union1",
+      "name": "Lagos Central Union",
+      "location": "Lagos",
+      "creditOfficerId": "cm4officer1"
+    },
+    "loanType": {
+      "id": "cm4type1",
+      "name": "Business Loan",
+      "minAmount": 10000.00,
+      "maxAmount": 500000.00,
+      "termUnit": "MONTH",
+      "minTerm": 1,
+      "maxTerm": 12
+    },
+    "createdAt": "2026-03-11T14:30:00.000Z",
+    "updatedAt": "2026-03-11T14:30:00.000Z",
+    "deletedAt": null
+  }
+}
+```
+
+</ResponseExample>

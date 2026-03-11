@@ -1,0 +1,707 @@
+---
+title: "Union Members"
+description: "Manage individual member profiles, documents, and union assignments"
+icon: "user-group"
+---
+
+## What are Union Members?
+
+Union Members (also called customers) are individuals who belong to a union and can receive loans. Each member has a detailed profile with personal information, contact details, documents, and loan history.
+
+<Info>
+  Members must be assigned to a union before they can apply for loans. Only verified members are eligible for loan disbursement.
+</Info>
+
+## Union Member Data Model
+
+From the Prisma schema:
+
+```prisma
+model UnionMember {
+  id            String    @id @default(cuid())
+  code          String?   @unique  // Optional member code
+  firstName     String               // Required
+  lastName      String               // Required
+  phone         String?
+  email         String?
+  address       String?
+  dateOfBirth   DateTime?
+  gender        String?
+  maritalStatus String?
+  profession    String?
+  company       String?
+  city          String?
+  state         String?
+  country       String?
+  zipCode       String?
+  note          String?
+  profileImage  String?
+  isVerified    Boolean   @default(true)
+  
+  // Union Assignment
+  unionId          String            // Required
+  union            Union
+  currentOfficerId String?           // Derived from union
+  currentOfficer   User?
+  
+  // Relations
+  documents                UnionMemberDocument[]
+  loans                    Loan[]
+  unionMemberReassignments UnionMemberReassignment[]
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // Soft delete
+}
+```
+
+## Profile Fields
+
+### Required Information
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `firstName` | String | Member's first name |
+| `lastName` | String | Member's last name |
+| `unionId` | String | Union membership (must exist) |
+
+### Contact Information
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `phone` | String | Mobile/contact number |
+| `email` | String | Email address (optional) |
+| `address` | String | Street address |
+| `city` | String | City or town |
+| `state` | String | State or region |
+| `country` | String | Country |
+| `zipCode` | String | Postal code |
+
+### Personal Details
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `dateOfBirth` | DateTime | Birthday |
+| `gender` | String | Male/Female/Other |
+| `maritalStatus` | String | Marital status |
+| `profession` | String | Occupation |
+| `company` | String | Employer name |
+
+### System Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `code` | String | Unique member identifier (optional) |
+| `isVerified` | Boolean | Verification status (default: true) |
+| `profileImage` | String | Profile photo URL |
+| `note` | String | Administrative notes |
+
+## Viewing All Members
+
+<Steps>
+  <Step title="Navigate">
+    Click **Business Management** → **Union Members**
+  </Step>
+  <Step title="View List">
+    See all members you have permission to access
+  </Step>
+</Steps>
+
+### List Features
+
+<CardGroup cols={2}>
+  <Card title="Search" icon="magnifying-glass">
+    Search by name, email, or phone number
+  </Card>
+  <Card title="Filter by Union" icon="filter">
+    Select a specific union to view its members
+  </Card>
+  <Card title="Filter by Officer" icon="user-tie">
+    View members assigned to a specific credit officer
+  </Card>
+  <Card title="Export" icon="download">
+    Download member list as CSV file
+  </Card>
+</CardGroup>
+
+### Role-Based Access
+
+<Accordion title="Administrator">
+  Can view and manage **all members** across all unions
+</Accordion>
+
+<Accordion title="Supervisor">
+  Can view members in unions managed by **their credit officers**
+</Accordion>
+
+<Accordion title="Credit Officer">
+  Can only view and manage members in **their assigned unions**
+</Accordion>
+
+## Adding a New Member
+
+<Steps>
+  <Step title="Start Creation">
+    Go to Union Members page and click **+ Add Member**
+  </Step>
+  
+  <Step title="Personal Information">
+    Fill in required fields:
+    - **First Name** (required)
+    - **Last Name** (required)
+    - **Phone** (highly recommended)
+    - Email (optional)
+    - Date of Birth (optional)
+    - Gender (optional)
+  </Step>
+  
+  <Step title="Address Information">
+    Enter location details:
+    - Street address
+    - City, State, Country
+    - Zip/Postal code
+  </Step>
+  
+  <Step title="Union Assignment">
+    **Select Union** (required)
+    
+    The member will be assigned to this union and its credit officer
+  </Step>
+  
+  <Step title="Professional Details">
+    Optionally add:
+    - Profession/occupation
+    - Company/employer
+    - Marital status
+  </Step>
+  
+  <Step title="Upload Documents">
+    Add identification documents if required (see Document section below)
+  </Step>
+  
+  <Step title="Save">
+    Click **Create Member** to save the profile
+  </Step>
+</Steps>
+
+### API Endpoint
+
+```typescript
+// POST /api/union-members
+const createMember = async (data: {
+  firstName: string;
+  lastName: string;
+  unionId: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  maritalStatus?: string;
+  profession?: string;
+  company?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  zipCode?: string;
+  note?: string;
+}) => {
+  // Creates new union member
+}
+```
+
+<Note>
+  **Member Code:** If you don't provide a code, the system generates a unique identifier automatically.
+</Note>
+
+## Viewing Member Details
+
+Click any member in the list to see their complete profile:
+
+<CardGroup cols={2}>
+  <Card title="Profile Overview" icon="id-card">
+    - Full name and member code
+    - Profile photo (if uploaded)
+    - Contact information
+    - Verification status
+  </Card>
+  
+  <Card title="Personal Details" icon="user">
+    - Date of birth and age
+    - Gender and marital status
+    - Profession and company
+    - Address details
+  </Card>
+  
+  <Card title="Union Membership" icon="users-rectangle">
+    - Current union
+    - Assigned credit officer
+    - Membership date
+    - Reassignment history
+  </Card>
+  
+  <Card title="Loan History" icon="credit-card">
+    - All loans (past and present)
+    - Total borrowed
+    - Repayment performance
+    - Current loan status
+  </Card>
+</CardGroup>
+
+### Documents Tab
+
+View all uploaded documents:
+- ID cards
+- Proof of address
+- Business permits
+- Other supporting documents
+
+Each document shows:
+- Document type
+- Upload date
+- Verification status
+- Issuing authority (if applicable)
+- Expiry date (if applicable)
+
+## Editing Member Information
+
+<Steps>
+  <Step title="Find Member">
+    Locate the member in the list
+  </Step>
+  
+  <Step title="Open Editor">
+    Click the **Edit** icon (pencil) in Actions column
+  </Step>
+  
+  <Step title="Update Fields">
+    Modify any information as needed
+  </Step>
+  
+  <Step title="Save Changes">
+    Click **Save Changes** to update
+  </Step>
+</Steps>
+
+<Warning>
+  You cannot change the union assignment from the edit form. Use the **Reassign Member** feature instead.
+</Warning>
+
+## Member Verification
+
+Before a member can receive loan disbursements, they should be verified.
+
+<Steps>
+  <Step title="Open Member Details">
+    Click on the member's profile
+  </Step>
+  
+  <Step title="Locate Verification Section">
+    Find the "Verification" toggle switch
+  </Step>
+  
+  <Step title="Toggle Status">
+    Switch **Verified** to ON (green)
+  </Step>
+  
+  <Step title="Add Notes">
+    Optionally add verification notes explaining what was confirmed
+  </Step>
+</Steps>
+
+### Verification Checklist
+
+<Accordion title="What to Verify">
+  Before marking a member as verified, confirm:
+  - ✅ Identity documents are valid
+  - ✅ Contact information is correct
+  - ✅ Address can be confirmed
+  - ✅ Member understands loan terms
+  - ✅ Required documents are uploaded
+</Accordion>
+
+### API Endpoint
+
+```typescript
+// POST /api/union-members/:id/toggle-verification
+const toggleVerification = async (memberId: string) => {
+  // Toggles isVerified status
+}
+```
+
+## Reassigning Members to Different Unions
+
+Members can be moved from one union to another:
+
+<Info>
+  When reassigning a member, they move to the new union and its credit officer
+</Info>
+
+<Steps>
+  <Step title="Open Member Profile">
+    Navigate to the member's detail page
+  </Step>
+  
+  <Step title="Click Reassign">
+    Find and click the **Reassign Member** button
+  </Step>
+  
+  <Step title="Select New Union">
+    Choose the destination union from the dropdown
+  </Step>
+  
+  <Step title="Provide Reason">
+    Enter the reason for reassignment (required for audit trail)
+  </Step>
+  
+  <Step title="Confirm">
+    Review and click **Confirm Reassignment**
+  </Step>
+</Steps>
+
+### What Happens During Reassignment?
+
+1. **Member's unionId is updated** to the new union
+2. **currentOfficerId changes** to the new union's credit officer
+3. **Reassignment history is recorded** in `UnionMemberReassignment`
+4. **All existing loans remain unchanged**
+5. **New loans will be under the new union**
+
+### Reassignment History Model
+
+```prisma
+model UnionMemberReassignment {
+  id            String      @id
+  unionMemberId String
+  oldUnionId    String?
+  newUnionId    String
+  oldOfficerId  String?
+  newOfficerId  String?
+  changedByUserId String
+  reason          String?
+  changedAt       DateTime @default(now())
+}
+```
+
+<Accordion title="View Reassignment History">
+  Each member's profile includes a complete history of all union changes with dates, reasons, and who made the change
+</Accordion>
+
+## Document Management
+
+### Document Types
+
+The system supports various document types configured by administrators:
+- National ID Card
+- Driver's License
+- Passport
+- Utility Bill (proof of address)
+- Business Registration
+- Bank Statement
+- Custom types
+
+### Uploading Documents
+
+<Steps>
+  <Step title="Open Member Profile">
+    Navigate to the member's detail page
+  </Step>
+  
+  <Step title="Documents Tab">
+    Click on the **Documents** tab
+  </Step>
+  
+  <Step title="Upload New">
+    Click **Upload Document** button
+  </Step>
+  
+  <Step title="Select Type">
+    Choose the document type from dropdown
+  </Step>
+  
+  <Step title="Choose File">
+    Select the file from your device (image or PDF)
+  </Step>
+  
+  <Step title="Add Details">
+    Optionally provide:
+    - Issuing authority
+    - Issue date
+    - Expiry date
+  </Step>
+  
+  <Step title="Upload">
+    Click **Upload** to save
+  </Step>
+</Steps>
+
+### Document Model
+
+```prisma
+model UnionMemberDocument {
+  id                String       @id
+  unionMemberId     String
+  documentTypeId    String
+  fileUrl           String
+  issuingAuthority  String?
+  issueDate         DateTime?
+  expiryDate        DateTime?
+  verified          Boolean      @default(false)
+  verificationNotes String?
+  uploadedByUserId  String
+  uploadedAt        DateTime     @default(now())
+}
+```
+
+### Verifying Documents
+
+<Accordion title="Document Verification Process">
+  Supervisors or Admins can:
+  1. Open the document
+  2. Review its authenticity
+  3. Toggle **Verified** status
+  4. Add verification notes
+  5. Set expiry reminders
+</Accordion>
+
+<Warning>
+  Keep document expiry dates updated. The system can alert when documents are about to expire.
+</Warning>
+
+## Deleting Members
+
+<Warning>
+  **You cannot delete a member who has:**
+  - Active loans
+  - Pending loan applications
+  - Outstanding balances
+  
+  Complete or cancel all loans first, or deactivate the member instead.
+</Warning>
+
+<Steps>
+  <Step title="Locate Member">
+    Find the member in the list
+  </Step>
+  
+  <Step title="Delete Action">
+    Click the **Delete** icon (trash can)
+  </Step>
+  
+  <Step title="Confirm">
+    Review the warning and click **Confirm Deletion**
+  </Step>
+</Steps>
+
+<Info>
+  Members are **soft deleted** (marked with `deletedAt`) to preserve historical records and audit trails.
+</Info>
+
+## Search and Filters
+
+### Search Functionality
+
+The search bar looks for matches in:
+- First name
+- Last name
+- Email address
+- Phone number
+- Member code
+
+```typescript
+// Search example
+searchTerm: "john" 
+// Finds: "John Smith", "Smith John", "john@email.com", etc.
+```
+
+### Filter Options
+
+<CardGroup cols={2}>
+  <Card title="By Union" icon="users-rectangle">
+    Select a union to see only its members
+  </Card>
+  <Card title="By Credit Officer" icon="user-tie">
+    View members managed by a specific officer
+  </Card>
+  <Card title="By Verification Status" icon="check-circle">
+    Filter verified vs. unverified members
+  </Card>
+  <Card title="Date Range" icon="calendar">
+    See members registered in a specific period
+  </Card>
+</CardGroup>
+
+### Advanced Filters
+
+<Accordion title="Gender Filter">
+  Filter members by Male, Female, or Other
+</Accordion>
+
+<Accordion title="Marital Status Filter">
+  Filter by Single, Married, Divorced, or Widowed
+</Accordion>
+
+<Accordion title="Profession Filter">
+  Search by occupation or business type
+</Accordion>
+
+## Export Options
+
+### Export All Members
+
+<Steps>
+  <Step title="Apply Filters">
+    Set any filters you want (union, officer, verification status)
+  </Step>
+  <Step title="Click Export">
+    Click the **Export** button
+  </Step>
+  <Step title="Choose Format">
+    Select CSV or Excel format
+  </Step>
+  <Step title="Download">
+    File downloads with all filtered member data
+  </Step>
+</Steps>
+
+### Export Includes
+
+- Member code and full name
+- Contact information (phone, email, address)
+- Union and officer assignments
+- Verification status
+- Registration date
+- Personal details (DOB, gender, profession)
+- Loan statistics
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Data Entry" icon="keyboard">
+    - Always enter first and last names
+    - Verify phone numbers are correct
+    - Use consistent formatting
+    - Add notes for special circumstances
+  </Card>
+  
+  <Card title="Verification" icon="shield-check">
+    - Verify members before first loan
+    - Update verification when documents expire
+    - Document what was verified in notes
+    - Re-verify periodically
+  </Card>
+  
+  <Card title="Document Management" icon="file-text">
+    - Upload clear, readable documents
+    - Track expiry dates
+    - Verify authenticity
+    - Store securely
+  </Card>
+  
+  <Card title="Privacy" icon="lock">
+    - Protect personal information
+    - Don't share login credentials
+    - Log out on shared computers
+    - Follow data protection policies
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Cannot create member">
+    **Check:**
+    - First name and last name are filled
+    - Union is selected
+    - Email isn't already in use (if provided)
+    - You have necessary permissions
+  </Accordion>
+  
+  <Accordion title="Cannot find a member">
+    **Try:**
+    - Clear search filters
+    - Check spelling in search
+    - Verify you have access to their union
+    - Check if member was deleted
+  </Accordion>
+  
+  <Accordion title="Cannot delete member">
+    **Reason:** Member has active loans
+    
+    **Solution:**
+    1. Complete or cancel all loans
+    2. Wait for loans to close
+    3. Or mark member as inactive instead
+  </Accordion>
+  
+  <Accordion title="Document upload fails">
+    **Possible causes:**
+    - File too large (max size limit)
+    - Unsupported file format
+    - Network connection issue
+    
+    **Solution:** Compress image/PDF or check file type
+  </Accordion>
+  
+  <Accordion title="Reassignment not working">
+    **Check:**
+    - You're Admin or Supervisor
+    - Target union exists and is active
+    - Member has no pending transactions
+    - Reason is provided
+  </Accordion>
+</AccordionGroup>
+
+## API Reference
+
+### Endpoints
+
+```typescript
+// Get all members
+GET /api/union-members?page=1&limit=20&search=keyword&unionId=xxx&currentOfficerId=xxx
+
+// Get member by ID
+GET /api/union-members/:id
+
+// Create member
+POST /api/union-members
+Body: { firstName, lastName, unionId, phone?, email?, ... }
+
+// Update member
+PUT /api/union-members/:id
+Body: { firstName?, lastName?, phone?, email?, ... }
+
+// Delete member (soft)
+DELETE /api/union-members/:id
+
+// Toggle verification
+POST /api/union-members/:id/toggle-verification
+
+// Reassign to new union
+POST /api/union-members/:id/reassign
+Body: { newUnionId, reason? }
+
+// Export members
+GET /api/union-members/export?unionId=xxx&currentOfficerId=xxx&search=keyword
+
+// Check email uniqueness
+GET /api/union-members/check-email?email=test@example.com
+```
+
+## Summary
+
+Union Member management provides:
+- ✅ Comprehensive member profiles
+- ✅ Document upload and verification
+- ✅ Union and officer assignments
+- ✅ Reassignment with audit trail
+- ✅ Search and filter capabilities
+- ✅ Role-based access control
+- ✅ Loan history tracking
+- ✅ Export and reporting
+
+<Card title="Next Steps" icon="arrow-right">
+  - Create [Loans](/features/loans) for verified members
+  - Process [Repayments](/features/repayments) for active loans
+  - Generate [Reports](/features/reporting) on member performance
+</Card>

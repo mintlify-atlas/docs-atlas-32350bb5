@@ -1,0 +1,166 @@
+---
+title: "Create Union"
+api: "POST /api/unions"
+---
+
+Create a new union and assign it to a credit officer.
+
+## Authentication
+
+Required. Include a valid JWT token in the Authorization header.
+
+```bash
+Authorization: Bearer <token>
+```
+
+## Authorization
+
+This endpoint requires **ADMIN** or **SUPERVISOR** role. Credit officers cannot create unions.
+
+## Request Body
+
+<ParamField body="name" type="string" required>
+  Name of the union. This field is required.
+</ParamField>
+
+<ParamField body="location" type="string" optional>
+  Location of the union (e.g., city or region).
+</ParamField>
+
+<ParamField body="address" type="string" optional>
+  Physical address of the union.
+</ParamField>
+
+<ParamField body="creditOfficerId" type="string" required>
+  ID of the credit officer who will manage this union. This field is required.
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful.
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Success message confirming the union was created.
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  The created union object.
+  
+  <Expandable title="Union properties">
+    <ResponseField name="id" type="string">
+      Unique identifier for the union (CUID).
+    </ResponseField>
+    
+    <ResponseField name="name" type="string">
+      Name of the union.
+    </ResponseField>
+    
+    <ResponseField name="location" type="string" optional>
+      Location of the union.
+    </ResponseField>
+    
+    <ResponseField name="address" type="string" optional>
+      Physical address of the union.
+    </ResponseField>
+    
+    <ResponseField name="creditOfficerId" type="string">
+      ID of the credit officer managing this union.
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp of when the union was created.
+    </ResponseField>
+    
+    <ResponseField name="updatedAt" type="string">
+      ISO 8601 timestamp of the last update.
+    </ResponseField>
+    
+    <ResponseField name="deletedAt" type="string" optional>
+      ISO 8601 timestamp of soft deletion (null if not deleted).
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Request
+
+```bash
+curl --request POST \
+  --url https://api.example.com/api/unions \
+  --header 'Authorization: Bearer <token>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "name": "Central Farmers Union",
+    "location": "Lagos",
+    "address": "123 Main Street, Ikeja, Lagos",
+    "creditOfficerId": "clx1234567890"
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "message": "Union created successfully",
+  "data": {
+    "id": "clx9876543210",
+    "name": "Central Farmers Union",
+    "location": "Lagos",
+    "address": "123 Main Street, Ikeja, Lagos",
+    "creditOfficerId": "clx1234567890",
+    "createdAt": "2024-03-15T10:30:00.000Z",
+    "updatedAt": "2024-03-15T10:30:00.000Z",
+    "deletedAt": null
+  }
+}
+```
+
+## Error Responses
+
+<ResponseField name="401 Unauthorized">
+  Missing or invalid authentication token.
+  
+  ```json
+  {
+    "success": false,
+    "message": "Unauthorized"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="403 Forbidden">
+  User does not have required role (ADMIN or SUPERVISOR).
+  
+  ```json
+  {
+    "success": false,
+    "message": "Access denied. Insufficient permissions."
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="400 Bad Request">
+  Missing required fields or validation error.
+  
+  ```json
+  {
+    "success": false,
+    "message": "Name and creditOfficerId are required"
+  }
+  ```
+  
+  Or:
+  
+  ```json
+  {
+    "success": false,
+    "message": "Failed to create union"
+  }
+  ```
+</ResponseField>
+
+## Audit Log
+
+This operation creates an audit log entry with action `UNION_CREATED` for tracking purposes.

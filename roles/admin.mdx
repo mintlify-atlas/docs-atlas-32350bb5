@@ -1,0 +1,335 @@
+---
+title: Administrator Role
+description: Complete guide to administrator capabilities and system management
+icon: crown
+---
+
+The **Administrator (ADMIN)** role has unrestricted access to all platform features and data. This role is designed for system managers and executives who need complete control over operations and configuration.
+
+## Core Responsibilities
+
+Administrators are responsible for:
+
+- **System Configuration**: Setting up loan types, company settings, email templates
+- **User Management**: Creating and managing all user accounts across all roles
+- **Global Oversight**: Monitoring operations across all supervisors and officers
+- **Data Integrity**: Managing backups, maintenance mode, and system health
+- **Security**: Resetting passwords, managing access, reviewing audit logs
+
+## User Management
+
+### Creating Users
+
+Admins can create users of any role, including other admins:
+
+```typescript
+// POST /api/users
+// Requires: requireAdmin middleware
+{
+  "email": "supervisor@example.com",
+  "firstName": "John",
+  "lastName": "Doe",
+  "role": "SUPERVISOR",
+  "password": "securePassword123",
+  "supervisorId": null  // For supervisors
+}
+```
+
+<Note>
+  When creating a Credit Officer, set the `supervisorId` to establish the reporting hierarchy.
+</Note>
+
+### Managing Users
+
+Admin-only user operations include:
+
+| Operation | Endpoint | Description |
+|-----------|----------|-------------|
+| List all users | `GET /api/users` | View all users with filters |
+| View user details | `GET /api/users/:id` | See complete user profile |
+| Update any user | `PUT /api/users/:id` | Modify user information |
+| Delete users | `DELETE /api/users/:id` | Remove users (checks dependencies) |
+| Reset passwords | `PUT /api/users/:id/reset-password` | Force password reset |
+| Bulk operations | `POST /api/users/bulk-operation` | Activate/deactivate multiple users |
+| Export users | `GET /api/users/export` | Download user list |
+| Import users | `POST /api/users/import` | Bulk user creation |
+
+### Password Reset Authority
+
+Only admins can reset user passwords:
+
+```typescript
+// PUT /api/users/:id/reset-password
+// Endpoint: user.routes.ts:91-96
+{
+  "newPassword": "temporaryPassword123"
+}
+```
+
+<Warning>
+  Always inform users when their password has been reset. They should change it immediately upon next login.
+</Warning>
+
+## System Configuration
+
+### Company Settings
+
+Admins configure global system settings:
+
+```typescript
+model CompanySetting {
+  id              String   @id
+  name            String
+  email           String
+  phone           String?
+  address         String?
+  currency        String?  @default("NGN")
+  currencySymbol  String?  @default("₦")
+  dateFormat      String?  @default("DD/MM/YYYY")
+  timeFormat      String?  @default("24h")
+  timezone        String?  @default("Africa/Lagos")
+  logo            String?
+  maintenanceMode Boolean  @default(false)
+}
+```
+
+### Maintenance Mode
+
+Admins can enable maintenance mode to block non-admin access:
+
+```typescript
+// From auth.middleware.ts:78-89
+if (user.role !== "ADMIN") {
+  const isMaintenance = await SettingsService.isMaintenanceModeActive();
+  if (isMaintenance) {
+    return ApiResponseUtil.error(
+      res,
+      "System is currently under maintenance. Please try again later.",
+      503
+    );
+  }
+}
+```
+
+<Warning>
+  Use maintenance mode sparingly. It blocks all Supervisors and Credit Officers from accessing the system.
+</Warning>
+
+### Loan Type Configuration
+
+Admins define available loan products:
+
+```prisma
+model LoanType {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String?
+  
+  minAmount   Decimal @db.Decimal(14, 2)
+  maxAmount   Decimal @db.Decimal(14, 2)
+  
+  termUnit    TermUnit @default(MONTH)
+  minTerm     Int      @default(1)
+  maxTerm     Int      @default(12)
+  
+  isActive    Boolean @default(true)
+}
+```
+
+### Email Template Management
+
+Admins customize system email templates:
+
+```typescript
+// Endpoint: /api/email-templates
+// Admin-only routes for CRUD operations on EmailTemplate model
+```
+
+## Union Management
+
+### Full Union Control
+
+Admins have complete control over unions:
+
+| Operation | Endpoint | Permission |
+|-----------|----------|------------|
+| Create unions | `POST /api/unions` | ❌ Admin-only |
+| View all unions | `GET /api/unions` | ✅ All roles |
+| Update unions | `PUT /api/unions/:id` | ❌ Admin-only |
+| Delete unions | `DELETE /api/unions/:id` | ❌ Admin-only |
+| Reassign unions | `POST /api/unions/:unionId/assign` | ❌ Admin-only |
+
+### Reassigning Unions
+
+Only admins can reassign unions to different Credit Officers:
+
+```typescript
+// POST /api/unions/:unionId/assign
+// union.routes.ts:44-49
+{
+  "newOfficerId": "clx...",
+  "reason": "Territory restructuring"
+}
+```
+
+This operation:
+1. Updates the `Union.creditOfficerId` field
+2. Creates a record in `UnionAssignmentHistory`
+3. Triggers audit logs
+
+## Loan Operations
+
+### Admin Loan Powers
+
+Admins have special loan management capabilities:
+
+#### Schedule Management
+
+```typescript
+// POST /api/loans/generate-missing-schedules
+// loan.routes.ts:35-40
+// Admin-only: Generate schedules for loans missing them
+```
+
+```typescript
+// POST /api/loans/regenerate-schedule/:loanId
+// loan.routes.ts:43-48
+// Admin-only: Regenerate schedule for a specific loan
+```
+
+<Warning>
+  Regenerating loan schedules should only be done when absolutely necessary, as it may affect repayment tracking.
+</Warning>
+
+#### Loan Approval Override
+
+Admins can approve or reject loans at any stage, bypassing supervisor hierarchy.
+
+## Reporting & Analytics
+
+### Supervisor Reports Access
+
+Admins have full access to supervisor reports:
+
+```typescript
+// supervisor-reports.routes.ts:24-28
+router.get(
+  "/dashboard",
+  requireRoles(["SUPERVISOR", "ADMIN"]),
+  SupervisorReportsController.getDashboard
+);
+```
+
+Admins can:
+- Generate reports for any supervisor
+- View all report sessions
+- Access officer performance metrics
+- See territory-wide analytics
+
+### Audit Log Access
+
+Admins can review the complete audit trail:
+
+```prisma
+model AuditLog {
+  id          String  @id @default(cuid())
+  actorUserId String?
+  action      String  // LOAN_CREATED, USER_DELETED, etc.
+  entityName  String  // Loan, User, Union, etc.
+  entityId    String
+  before      Json?
+  after       Json?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+}
+```
+
+## Backup & Restore
+
+Admins manage system backups:
+
+```prisma
+model BackupRecord {
+  id            String   @id @default(cuid())
+  filename      String
+  fileSize      Int
+  location      String   // "local", "cloud", "both"
+  cloudinaryUrl String?
+  type          String   // "manual", "scheduled"
+  status        String   // "completed", "failed", "in_progress"
+  recordCounts  Json?
+  createdBy     String?
+}
+
+model BackupScheduleSettings {
+  id               String    @id @default("default")
+  frequency        String    @default("disabled")
+  location         String    @default("cloud")
+  retentionDays    Int       @default(30)
+  includeAuditLogs Boolean   @default(false)
+  includeSessions  Boolean   @default(false)
+}
+```
+
+<Note>
+  Regular backups are critical. Set up automated backups through the BackupScheduleSettings.
+</Note>
+
+## Admin-Only Endpoints
+
+Here's a summary of admin-exclusive endpoints:
+
+### User Routes (user.routes.ts)
+- `POST /api/users/bulk-operation` - Bulk user operations
+- `GET /api/users/export` - Export users
+- `POST /api/users/import` - Import users
+- `GET /api/users/:id/dependencies` - Check user dependencies
+- `DELETE /api/users/:id` - Delete users
+- `PUT /api/users/:id/reset-password` - Reset passwords
+
+### Union Routes (union.routes.ts)
+- `PUT /api/unions/:id` - Update unions
+- `DELETE /api/unions/:id` - Delete unions
+- `POST /api/unions/:unionId/assign` - Reassign unions
+
+### Loan Routes (loan.routes.ts)
+- `POST /api/loans/generate-missing-schedules` - Generate missing schedules
+- `POST /api/loans/regenerate-schedule/:loanId` - Regenerate loan schedule
+
+### System Routes
+- All routes under `/api/settings`
+- All routes under `/api/email-templates`
+- All routes under `/api/backup`
+
+## Security Considerations
+
+<AccordionGroup>
+  <Accordion title="Limit Admin Accounts">
+    Only create admin accounts for trusted executives and system managers. Too many admins increase security risk.
+  </Accordion>
+  
+  <Accordion title="Monitor Admin Actions">
+    Regularly review audit logs for admin actions, especially user deletions and system configuration changes.
+  </Accordion>
+  
+  <Accordion title="Use Strong Authentication">
+    Admins should use strong passwords and enable two-factor authentication when available.
+  </Accordion>
+  
+  <Accordion title="Maintenance Mode Protocol">
+    Before enabling maintenance mode, notify all users. Only use it during critical updates or data migrations.
+  </Accordion>
+</AccordionGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Supervisor Role" icon="user-tie" href="/roles/supervisor">
+    Learn about supervisor capabilities and team management
+  </Card>
+  <Card title="Credit Officer Role" icon="briefcase" href="/roles/credit-officer">
+    Understand field operations and day-to-day loan management
+  </Card>
+</CardGroup>

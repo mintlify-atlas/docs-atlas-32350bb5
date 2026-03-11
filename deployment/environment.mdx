@@ -1,0 +1,376 @@
+---
+title: Environment Configuration
+description: Complete guide to environment variables for backend and frontend deployment
+---
+
+This page documents all environment variables required for the Millennium Potters application. Configuration differs between local development and production environments.
+
+## Environment Files
+
+| File | Location | Purpose |
+|------|----------|----------|
+| `.env.local` | `backend/` | Local development with PostgreSQL |
+| `.env.local` | `frontend/` | Local development frontend config |
+| `.env.production` | `backend/` | Production with CockroachDB |
+| Platform Variables | Vercel/Render/Plesk | Production frontend config |
+
+<Warning>
+  Never commit `.env` files to version control. Add them to `.gitignore`.
+</Warning>
+
+## Backend Environment Variables
+
+### Database Configuration
+
+<CodeGroup>
+```env Local Development
+# PostgreSQL connection for local development
+DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@localhost:5432/millenium_local?schema=public"
+DIRECT_URL="postgresql://postgres:YOUR_PASSWORD@localhost:5432/millenium_local?schema=public"
+```
+
+```env Production
+# CockroachDB connection with pooling
+DATABASE_URL="postgresql://user:password@host.cockroachlabs.cloud:26257/defaultdb?sslmode=verify-full&connection_limit=20&pool_timeout=20"
+DIRECT_URL="postgresql://user:password@host.cockroachlabs.cloud:26257/defaultdb?sslmode=verify-full"
+```
+</CodeGroup>
+
+<ParamField path="DATABASE_URL" type="string" required>
+  Primary database connection string. In production, this should include connection pooling parameters:
+  - `connection_limit=20` - Max connections (20-30 for 50-100 users)
+  - `pool_timeout=20` - Connection timeout in seconds
+</ParamField>
+
+<ParamField path="DIRECT_URL" type="string" required>
+  Direct database connection for migrations. **Do not** include pooling parameters.
+</ParamField>
+
+### Server Configuration
+
+```env
+PORT=5000
+CORS_ORIGIN="http://localhost:3000"
+NODE_ENV="development"  # or "production"
+```
+
+<ParamField path="PORT" type="number" default="5000">
+  Port the backend server listens on.
+</ParamField>
+
+<ParamField path="CORS_ORIGIN" type="string" required>
+  Allowed frontend origin for CORS. In production, set to your frontend URL (e.g., `https://app.millenniumpotters.com`).
+</ParamField>
+
+<ParamField path="NODE_ENV" type="string" default="development">
+  Environment mode. Set to `production` for production deployments.
+</ParamField>
+
+### Authentication
+
+```env
+JWT_SECRET="your-super-secret-jwt-key-min-32-chars"
+JWT_EXPIRES_IN="7d"
+REFRESH_TOKEN_EXPIRES_IN="30d"
+
+# Supabase (optional, for OAuth)
+NEXT_PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="your-anon-key"
+```
+
+<ParamField path="JWT_SECRET" type="string" required>
+  Secret key for signing JWT tokens. **Must be at least 32 characters**. Generate with:
+  ```bash
+  openssl rand -base64 32
+  ```
+</ParamField>
+
+<ParamField path="JWT_EXPIRES_IN" type="string" default="7d">
+  Access token expiration time (e.g., `1h`, `7d`, `30d`).
+</ParamField>
+
+<ParamField path="REFRESH_TOKEN_EXPIRES_IN" type="string" default="30d">
+  Refresh token expiration time.
+</ParamField>
+
+### Cloud Storage (Cloudinary)
+
+```env
+CLOUDINARY_CLOUD_NAME="your-cloud-name"
+CLOUDINARY_API_KEY="123456789012345"
+CLOUDINARY_API_SECRET="your-api-secret"
+CLOUDINARY_UPLOAD_PRESET="your-preset"  # optional
+```
+
+<ParamField path="CLOUDINARY_CLOUD_NAME" type="string" required>
+  Your Cloudinary cloud name from the dashboard.
+</ParamField>
+
+<ParamField path="CLOUDINARY_API_KEY" type="string" required>
+  Cloudinary API key for authenticated uploads.
+</ParamField>
+
+<ParamField path="CLOUDINARY_API_SECRET" type="string" required>
+  Cloudinary API secret.
+</ParamField>
+
+### Email Configuration (Optional)
+
+```env
+EMAIL_HOST="smtp.gmail.com"
+EMAIL_PORT=587
+EMAIL_USER="[email protected]"
+EMAIL_PASSWORD="your-app-password"
+EMAIL_FROM="Millennium Potters <[email protected]>"
+```
+
+<ParamField path="EMAIL_HOST" type="string">
+  SMTP server hostname (e.g., `smtp.gmail.com`, `smtp.sendgrid.net`).
+</ParamField>
+
+<ParamField path="EMAIL_PORT" type="number" default="587">
+  SMTP port (587 for TLS, 465 for SSL).
+</ParamField>
+
+<ParamField path="EMAIL_USER" type="string">
+  SMTP username (usually your email address).
+</ParamField>
+
+<ParamField path="EMAIL_PASSWORD" type="string">
+  SMTP password or app-specific password.
+</ParamField>
+
+<ParamField path="EMAIL_FROM" type="string">
+  Sender name and email in format: `Name <[email protected]>`.
+</ParamField>
+
+## Frontend Environment Variables
+
+<CodeGroup>
+```env Local Development
+NEXT_PUBLIC_API_URL=http://localhost:5000/api
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+```env Production
+NEXT_PUBLIC_API_URL=https://api.millenniumpotters.com/api
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+</CodeGroup>
+
+<ParamField path="NEXT_PUBLIC_API_URL" type="string" required>
+  Backend API base URL. Must include `/api` suffix.
+  
+  <Warning>
+    In production, ensure this points to your deployed backend HTTPS URL.
+  </Warning>
+</ParamField>
+
+<ParamField path="NEXT_PUBLIC_SUPABASE_URL" type="string" required>
+  Supabase project URL from your project settings.
+</ParamField>
+
+<ParamField path="NEXT_PUBLIC_SUPABASE_ANON_KEY" type="string" required>
+  Supabase anonymous key (safe to expose in frontend).
+</ParamField>
+
+## Complete Environment File Examples
+
+### Backend `.env.local` (Development)
+
+```env
+# Database
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/millenium_local?schema=public"
+DIRECT_URL="postgresql://postgres:postgres@localhost:5432/millenium_local?schema=public"
+
+# Server
+PORT=5000
+CORS_ORIGIN="http://localhost:3000"
+NODE_ENV="development"
+
+# JWT
+JWT_SECRET="dev-secret-key-change-in-production-min-32-characters"
+JWT_EXPIRES_IN="7d"
+REFRESH_TOKEN_EXPIRES_IN="30d"
+
+# Cloudinary
+CLOUDINARY_CLOUD_NAME="your-cloud"
+CLOUDINARY_API_KEY="123456789012345"
+CLOUDINARY_API_SECRET="your-secret"
+
+# Email (optional)
+EMAIL_HOST="smtp.gmail.com"
+EMAIL_PORT=587
+EMAIL_USER="[email protected]"
+EMAIL_PASSWORD="your-app-password"
+EMAIL_FROM="Dev Server <[email protected]>"
+```
+
+### Frontend `.env.local` (Development)
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:5000/api
+NEXT_PUBLIC_SUPABASE_URL=https://abcdefghijklmnop.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+## Environment Variable Validation
+
+The backend validates required environment variables on startup. Missing variables will cause the server to fail with clear error messages.
+
+### Testing Your Configuration
+
+<Steps>
+  <Step title="Backend health check">
+    ```bash
+    curl http://localhost:5000/health
+    ```
+    
+    Expected response:
+    ```json
+    {
+      "status": "ok",
+      "timestamp": "2026-03-11T10:00:00.000Z",
+      "database": "connected"
+    }
+    ```
+  </Step>
+
+  <Step title="Frontend connection test">
+    Open http://localhost:3000 and check browser console for errors.
+    
+    Look for:
+    - No CORS errors
+    - Successful API connection messages
+    - Supabase client initialization
+  </Step>
+</Steps>
+
+## Production Deployment
+
+### Platform-Specific Setup
+
+<Tabs>
+  <Tab title="Vercel">
+    Add environment variables in Project Settings → Environment Variables:
+    
+    1. Go to your project dashboard
+    2. Click "Settings" → "Environment Variables"
+    3. Add each variable from the frontend configuration
+    4. Select "Production" environment
+    5. Click "Save"
+    
+    <Note>
+      Vercel automatically prefixes exposed variables with `NEXT_PUBLIC_`.
+    </Note>
+  </Tab>
+
+  <Tab title="Render">
+    Add environment variables in the service settings:
+    
+    1. Select your backend service
+    2. Go to "Environment" tab
+    3. Add all backend variables
+    4. Click "Save Changes"
+    5. Service will automatically redeploy
+    
+    <Tip>
+      Use Render's "Secret Files" feature for sensitive config files.
+    </Tip>
+  </Tab>
+
+  <Tab title="Plesk">
+    Add environment variables via Node.js settings:
+    
+    1. Go to Websites & Domains
+    2. Select your domain
+    3. Click "Node.js"
+    4. Add variables in "Environment Variables" section
+    5. Restart the application
+  </Tab>
+</Tabs>
+
+## Security Best Practices
+
+<AccordionGroup>
+  <Accordion title="Rotate secrets regularly" icon="rotate">
+    - Change `JWT_SECRET` every 90 days
+    - Rotate database passwords quarterly
+    - Update API keys if compromised
+  </Accordion>
+
+  <Accordion title="Use strong secrets" icon="lock">
+    - JWT secrets: minimum 32 characters
+    - Database passwords: 16+ characters with mixed case, numbers, symbols
+    - Never use default or example values in production
+  </Accordion>
+
+  <Accordion title="Limit access scope" icon="shield">
+    - Use read-only database users where possible
+    - Restrict Cloudinary upload presets
+    - Enable IP whitelisting on CockroachDB
+  </Accordion>
+
+  <Accordion title="Monitor for leaks" icon="eye">
+    - Scan repositories for exposed secrets
+    - Review server logs for credential exposure
+    - Enable GitHub secret scanning
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Database connection fails">
+    **Symptoms**: `Error: connect ECONNREFUSED` or timeout errors
+    
+    **Solutions**:
+    - Verify `DATABASE_URL` format is correct
+    - Check PostgreSQL is running: `sudo systemctl status postgresql`
+    - Confirm database exists: `psql -l`
+    - Test connection: `psql "$DATABASE_URL"`
+  </Accordion>
+
+  <Accordion title="CORS errors in browser">
+    **Symptoms**: `Access-Control-Allow-Origin` errors
+    
+    **Solutions**:
+    - Ensure `CORS_ORIGIN` matches your frontend URL exactly
+    - Include protocol (`http://` or `https://`)
+    - Remove trailing slashes
+    - Restart backend after changing env vars
+  </Accordion>
+
+  <Accordion title="JWT token errors">
+    **Symptoms**: 401 Unauthorized or token validation fails
+    
+    **Solutions**:
+    - Verify `JWT_SECRET` is at least 32 characters
+    - Check secret matches between environments
+    - Clear browser localStorage/cookies
+    - Generate new secret: `openssl rand -base64 32`
+  </Accordion>
+
+  <Accordion title="Cloudinary upload fails">
+    **Symptoms**: Document uploads return 401 or 403
+    
+    **Solutions**:
+    - Verify all three Cloudinary variables are set
+    - Check API key and secret for typos
+    - Test credentials in Cloudinary dashboard
+    - Ensure cloud name is correct (no URL, just the name)
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Setup" icon="database" href="/deployment/database">
+    Initialize schema and run migrations
+  </Card>
+  <Card title="Production Deployment" icon="rocket" href="/deployment/production">
+    Deploy to production environment
+  </Card>
+</CardGroup>

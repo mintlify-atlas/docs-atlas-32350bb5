@@ -1,0 +1,816 @@
+---
+title: Production Deployment
+description: Complete guide to deploying Millennium Potters to production with CockroachDB
+---
+
+This guide walks through deploying the Millennium Potters application to production using CockroachDB for the database and your chosen hosting platform for the application.
+
+## Pre-Deployment Checklist
+
+Before starting deployment, ensure:
+
+- [ ] All [prerequisites](/deployment/prerequisites) are met
+- [ ] [Environment variables](/deployment/environment) are configured
+- [ ] [Database](/deployment/database) is set up and tested
+- [ ] Code is committed to version control (Git)
+- [ ] Production secrets are generated and secure
+- [ ] Backup of current production database (if updating)
+
+<Warning>
+  **Feature Freeze**: Stop all development on the deployment branch until deployment is complete.
+</Warning>
+
+## Deployment Architecture
+
+```
+┌─────────────────┐
+│  Users/Browser  │
+└────────┬────────┘
+         │ HTTPS
+         ▼
+┌─────────────────┐
+│  Frontend App   │  ← Next.js on Vercel/Netlify
+│  (Next.js 14)   │
+└────────┬────────┘
+         │ API Calls
+         ▼
+┌─────────────────┐
+│  Backend API    │  ← Node.js on Render/Plesk
+│  (Express)      │
+└────┬───────┬────┘
+     │       │
+     │       └──────────────┐
+     ▼                      ▼
+┌────────────┐      ┌──────────────┐
+│ CockroachDB│      │  Cloudinary  │
+│  Database  │      │   Storage    │
+└────────────┘      └──────────────┘
+```
+
+## Phase 1: Database Migration
+
+### 1.1 Backup Production Database
+
+<Note>
+  This step is **mandatory** before any production changes. It provides a rollback point if issues arise.
+</Note>
+
+```bash
+# Export production database to SQL file
+pg_dump "$PRODUCTION_DATABASE_URL" \
+  --no-owner \
+  --no-acl \
+  > prod_backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Verify backup file is not empty
+ls -lh prod_backup_*.sql
+```
+
+<Accordion title="Alternative: CockroachDB Native Backup">
+  If you have S3 configured:
+  
+  ```bash
+  cockroach sql --url "$PRODUCTION_DATABASE_URL" --execute="
+    BACKUP TO 's3://your-bucket/backups/millennium_$(date +%Y%m%d)' 
+    AS OF SYSTEM TIME '-10s';
+  "
+  ```
+</Accordion>
+
+### 1.2 Generate Migration Plan
+
+This creates a SQL script showing exactly what will change:
+
+```bash
+cd backend
+
+# Generate migration diff
+npx prisma migrate diff \
+  --from-url "$PRODUCTION_DIRECT_URL" \
+  --to-schema-datamodel prisma/schema.prisma \
+  --script > migration_plan_$(date +%Y%m%d).sql
+```
+
+### 1.3 Review Migration Script
+
+Open `migration_plan_YYYYMMDD.sql` and look for:
+
+<AccordionGroup>
+  <Accordion title="✅ Safe Operations" icon="check">
+    - `CREATE TABLE` - New features (e.g., `ReportSession`)
+    - `ALTER TABLE ... ADD COLUMN` - New fields (e.g., `User.supervisorId`)
+    - `CREATE INDEX` - Performance improvements
+    - `ALTER TABLE ... ADD CONSTRAINT` - Data integrity
+  </Accordion>
+
+  <Accordion title="⚠️ Review Carefully" icon="triangle-exclamation">
+    - `ALTER TABLE ... ALTER COLUMN` - Type changes
+    - `ALTER TABLE ... DROP CONSTRAINT` - Removing relationships
+    - Any operation on tables with large datasets
+  </Accordion>
+
+  <Accordion title="❌ Dangerous Operations" icon="xmark">
+    - `DROP TABLE` - Data loss
+    - `ALTER TABLE ... DROP COLUMN` - Permanent deletion
+    - `TRUNCATE` - Removes all data
+    
+    **If you see these**: Investigate immediately before proceeding.
+  </Accordion>
+</AccordionGroup>
+
+### 1.4 Apply Schema Changes
+
+Once verified safe:
+
+```bash
+# Apply migration to production
+npx prisma db execute \
+  --url "$PRODUCTION_DIRECT_URL" \
+  --file migration_plan_$(date +%Y%m%d).sql
+
+# Verify schema is in sync
+npx prisma generate
+```
+
+<Info>
+  This approach is safer than `prisma db push` because it shows exactly what will change before applying.
+</Info>
+
+## Phase 2: Backend Deployment
+
+### 2.1 Build Backend
+
+```bash
+cd backend
+
+# Install production dependencies
+npm install --production=false
+
+# Generate Prisma Client
+npx prisma generate
+
+# Compile TypeScript
+npm run build
+```
+
+This creates `dist/` directory with compiled JavaScript.
+
+### 2.2 Deploy to Hosting Platform
+
+<Tabs>
+  <Tab title="Render">
+    <Steps>
+      <Step title="Configure Render service">
+        In your Render dashboard:
+        - **Build Command**: `npm install && npx prisma generate && npm run build`
+        - **Start Command**: `npm start`
+        - **Node Version**: 18 or higher
+      </Step>
+
+      <Step title="Set environment variables">
+        Add all backend environment variables from [Environment Configuration](/deployment/environment):
+        - `DATABASE_URL` (with connection pooling)
+        - `DIRECT_URL`
+        - `JWT_SECRET`
+        - `CLOUDINARY_*`
+        - `CORS_ORIGIN` (set to your frontend URL)
+      </Step>
+
+      <Step title="Deploy">
+        ```bash
+        git push origin main
+        ```
+        
+        Render will automatically:
+        1. Clone repository
+        2. Run build command
+        3. Start the service
+      </Step>
+
+      <Step title="Verify deployment">
+        ```bash
+        curl https://your-backend.onrender.com/health
+        ```
+        
+        Expected response:
+        ```json
+        {
+          "status": "ok",
+          "timestamp": "2026-03-11T10:00:00.000Z",
+          "database": "connected"
+        }
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Plesk">
+    <Steps>
+      <Step title="SSH into server">
+        ```bash
+        ssh user@your-server.com
+        cd /var/www/millennium-backend
+        ```
+      </Step>
+
+      <Step title="Update code">
+        ```bash
+        git pull origin main
+        npm install
+        npx prisma generate
+        npm run build
+        ```
+      </Step>
+
+      <Step title="Configure Node.js app in Plesk">
+        1. Go to Websites & Domains
+        2. Select your domain
+        3. Click "Node.js"
+        4. Set:
+           - **Application Root**: `/var/www/millennium-backend`
+           - **Application Startup File**: `dist/server.js`
+           - **Node.js Version**: 18 or higher
+      </Step>
+
+      <Step title="Set environment variables">
+        In Plesk Node.js settings:
+        - Add all environment variables from `.env.production`
+        - Ensure `PORT` is set correctly (usually 3000 or 8080)
+      </Step>
+
+      <Step title="Restart application">
+        ```bash
+        pm2 restart millennium-backend
+        # or
+        npm run start
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Custom VPS">
+    <Steps>
+      <Step title="Install PM2 (if not already)">
+        ```bash
+        npm install -g pm2
+        ```
+      </Step>
+
+      <Step title="Deploy code">
+        ```bash
+        cd /opt/millennium-backend
+        git pull origin main
+        npm install
+        npx prisma generate
+        npm run build
+        ```
+      </Step>
+
+      <Step title="Start with PM2">
+        ```bash
+        pm2 start dist/server.js --name "millennium-api"
+        pm2 save
+        pm2 startup
+        ```
+      </Step>
+
+      <Step title="Configure reverse proxy (Nginx)">
+        ```nginx
+        server {
+            listen 80;
+            server_name api.millenniumpotters.com;
+
+            location / {
+                proxy_pass http://localhost:5000;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection 'upgrade';
+                proxy_set_header Host $host;
+                proxy_cache_bypass $http_upgrade;
+            }
+        }
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+### 2.3 Verify Backend Health
+
+```bash
+# Health check
+curl https://your-api-domain.com/health
+
+# Test authentication endpoint
+curl -X POST https://your-api-domain.com/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"[email protected]","password":"test"}'
+```
+
+## Phase 3: Frontend Deployment
+
+### 3.1 Build Frontend
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Build for production
+npm run build
+```
+
+<Note>
+  Next.js will build with Turbopack for optimized production bundles.
+</Note>
+
+### 3.2 Deploy to Hosting Platform
+
+<Tabs>
+  <Tab title="Vercel (Recommended)">
+    <Steps>
+      <Step title="Install Vercel CLI">
+        ```bash
+        npm install -g vercel
+        vercel login
+        ```
+      </Step>
+
+      <Step title="Configure project">
+        ```bash
+        cd frontend
+        vercel
+        ```
+        
+        Answer prompts:
+        - Set up and deploy? **Y**
+        - Link to existing project? **N** (first time)
+        - Project name: `millennium-potters`
+        - Framework: **Next.js** (auto-detected)
+      </Step>
+
+      <Step title="Set environment variables">
+        In Vercel dashboard or via CLI:
+        
+        ```bash
+        vercel env add NEXT_PUBLIC_API_URL production
+        # Enter: https://your-backend.onrender.com/api
+        
+        vercel env add NEXT_PUBLIC_SUPABASE_URL production
+        # Enter: your Supabase URL
+        
+        vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY production
+        # Enter: your Supabase anon key
+        ```
+      </Step>
+
+      <Step title="Deploy to production">
+        ```bash
+        vercel --prod
+        ```
+        
+        Your app will be live at `https://millennium-potters.vercel.app`
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Netlify">
+    <Steps>
+      <Step title="Install Netlify CLI">
+        ```bash
+        npm install -g netlify-cli
+        netlify login
+        ```
+      </Step>
+
+      <Step title="Initialize project">
+        ```bash
+        cd frontend
+        netlify init
+        ```
+      </Step>
+
+      <Step title="Configure build settings">
+        In `netlify.toml`:
+        
+        ```toml
+        [build]
+          command = "npm run build"
+          publish = ".next"
+        
+        [build.environment]
+          NODE_VERSION = "18"
+        ```
+      </Step>
+
+      <Step title="Set environment variables">
+        In Netlify dashboard:
+        - Site settings → Build & deploy → Environment
+        - Add all `NEXT_PUBLIC_*` variables
+      </Step>
+
+      <Step title="Deploy">
+        ```bash
+        netlify deploy --prod
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Self-Hosted">
+    <Steps>
+      <Step title="Build static export (if using SSG)">
+        ```bash
+        npm run build
+        npm run export
+        ```
+      </Step>
+
+      <Step title="Deploy to web server">
+        ```bash
+        # Copy build output to server
+        rsync -avz .next/ user@server:/var/www/millennium-frontend/
+        ```
+      </Step>
+
+      <Step title="Configure Nginx">
+        ```nginx
+        server {
+            listen 80;
+            server_name app.millenniumpotters.com;
+
+            root /var/www/millennium-frontend;
+            index index.html;
+
+            location / {
+                try_files $uri $uri/ /index.html;
+            }
+
+            location /_next/static/ {
+                alias /var/www/millennium-frontend/_next/static/;
+                expires 1y;
+                access_log off;
+            }
+        }
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+### 3.3 Verify Frontend Deployment
+
+<Steps>
+  <Step title="Access application">
+    Navigate to your production URL (e.g., `https://app.millenniumpotters.com`)
+  </Step>
+
+  <Step title="Check browser console">
+    - No CORS errors
+    - API requests succeeding
+    - No 404 errors for static assets
+  </Step>
+
+  <Step title="Test login">
+    1. Go to login page
+    2. Enter admin credentials
+    3. Verify successful authentication
+    4. Check dashboard loads correctly
+  </Step>
+</Steps>
+
+## Phase 4: Post-Deployment Verification
+
+### 4.1 Functional Tests
+
+<AccordionGroup>
+  <Accordion title="Authentication" icon="lock">
+    - [ ] Admin login works
+    - [ ] Supervisor login works
+    - [ ] Credit Officer login works
+    - [ ] Logout works
+    - [ ] Token refresh works (wait 5 minutes, refresh page)
+  </Accordion>
+
+  <Accordion title="Data Integrity" icon="database">
+    - [ ] User count matches pre-deployment
+    - [ ] Loan count matches pre-deployment
+    - [ ] Union count matches pre-deployment
+    - [ ] Old loans display correctly
+    - [ ] Old member profiles load
+  </Accordion>
+
+  <Accordion title="Core Features" icon="check">
+    - [ ] Create a test union
+    - [ ] Create a test member
+    - [ ] Create a test loan
+    - [ ] Record a test repayment
+    - [ ] Upload a test document
+    - [ ] Generate a report
+  </Accordion>
+
+  <Accordion title="UI/UX" icon="palette">
+    - [ ] Dark mode toggle works
+    - [ ] Mobile responsive design
+    - [ ] Command Center tour launches
+    - [ ] All pages load without errors
+  </Accordion>
+</AccordionGroup>
+
+### 4.2 Performance Checks
+
+```bash
+# Test API response time
+curl -w "@curl-format.txt" -o /dev/null -s https://your-api.com/health
+
+# curl-format.txt contents:
+# time_total: %{time_total}s
+```
+
+<Accordion title="Expected Metrics">
+  - **API Health Check**: < 200ms
+  - **Dashboard Load**: < 2s
+  - **Loan List Load**: < 1s (for 100 loans)
+  - **Database Query**: < 100ms (average)
+</Accordion>
+
+### 4.3 Security Verification
+
+<Steps>
+  <Step title="Check HTTPS">
+    - [ ] All traffic uses HTTPS
+    - [ ] HTTP redirects to HTTPS
+    - [ ] SSL certificate is valid
+  </Step>
+
+  <Step title="Verify CORS">
+    - [ ] Only frontend domain allowed
+    - [ ] API rejects requests from other origins
+  </Step>
+
+  <Step title="Test rate limiting">
+    ```bash
+    # Should get 429 after many requests
+    for i in {1..100}; do curl https://your-api.com/api/users; done
+    ```
+  </Step>
+</Steps>
+
+## Maintenance Mode
+
+For safe deployments, enable maintenance mode to prevent user actions during updates:
+
+### Enable Maintenance Mode
+
+```bash
+# Via API or database
+UPDATE "CompanySetting" SET "maintenanceMode" = true WHERE id = 'default';
+```
+
+When enabled:
+- Non-admin users see "Under Maintenance" message
+- Admins can still access the system
+- All data modification endpoints return 503
+
+### Disable After Deployment
+
+```bash
+UPDATE "CompanySetting" SET "maintenanceMode" = false WHERE id = 'default';
+```
+
+## Backup Strategy
+
+### Automated Backups
+
+CockroachDB provides:
+- **Hourly backups** (automatic)
+- **30-day retention**
+- **Point-in-Time Recovery** to any point in last 30 days
+
+### Application-Level Backups
+
+The system includes built-in backup features:
+
+1. **Go to**: Dashboard → Settings → Backup
+2. **Configure**:
+   - Frequency: Daily/Weekly/Monthly
+   - Location: Cloud (Cloudinary)
+   - Retention: 30 days (default)
+3. **Manual Backup**: Click "Backup Now"
+
+<Info>
+  Application backups are JSON exports stored in Cloudinary, separate from database backups.
+</Info>
+
+## Rollback Procedure
+
+If deployment fails:
+
+<Steps>
+  <Step title="Enable maintenance mode">
+    ```bash
+    UPDATE "CompanySetting" SET "maintenanceMode" = true;
+    ```
+  </Step>
+
+  <Step title="Restore database">
+    ```bash
+    # Restore from backup file
+    psql "$PRODUCTION_DATABASE_URL" < prod_backup_YYYYMMDD_HHMMSS.sql
+    ```
+  </Step>
+
+  <Step title="Revert code">
+    ```bash
+    # Backend
+    git revert HEAD
+    git push
+    
+    # Frontend (Vercel)
+    vercel rollback
+    ```
+  </Step>
+
+  <Step title="Verify rollback">
+    - Test login
+    - Check data integrity
+    - Verify all features work
+  </Step>
+
+  <Step title="Disable maintenance mode">
+    ```bash
+    UPDATE "CompanySetting" SET "maintenanceMode" = false;
+    ```
+  </Step>
+</Steps>
+
+## Monitoring and Logging
+
+### Health Monitoring
+
+Set up uptime monitoring with:
+- **UptimeRobot** (free)
+- **Pingdom**
+- **New Relic**
+
+Monitor:
+- `/health` endpoint every 5 minutes
+- Alert if down for > 2 minutes
+
+### Log Aggregation
+
+For backend logs:
+
+<Tabs>
+  <Tab title="Render">
+    View logs in Render dashboard:
+    - Go to your service
+    - Click "Logs" tab
+    - Filter by error level
+  </Tab>
+
+  <Tab title="PM2">
+    ```bash
+    # View logs
+    pm2 logs millennium-api
+    
+    # View errors only
+    pm2 logs millennium-api --err
+    
+    # Export logs
+    pm2 logs millennium-api --out logs.txt
+    ```
+  </Tab>
+</Tabs>
+
+### Audit Logs
+
+All user actions are logged in the `AuditLog` table:
+
+```sql
+SELECT 
+  "action",
+  "entityName",
+  "createdAt",
+  "actor"->>'firstName' as user_name
+FROM "AuditLog"
+ORDER BY "createdAt" DESC
+LIMIT 100;
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="500 Internal Server Error" icon="server">
+    **Possible Causes**:
+    - Database connection failed
+    - Missing environment variables
+    - Unhandled exceptions
+    
+    **Solutions**:
+    1. Check server logs
+    2. Verify `DATABASE_URL` is correct
+    3. Test database connection manually
+    4. Check Prisma Client is generated
+  </Accordion>
+
+  <Accordion title="CORS Errors" icon="globe">
+    **Symptoms**: Browser console shows CORS errors
+    
+    **Solutions**:
+    - Verify `CORS_ORIGIN` matches frontend URL exactly
+    - Include protocol (`https://`)
+    - Remove trailing slashes
+    - Restart backend after changing env vars
+  </Accordion>
+
+  <Accordion title="Database Migration Failed" icon="database">
+    **Symptoms**: Schema out of sync errors
+    
+    **Solutions**:
+    1. Check migration SQL for errors
+    2. Verify `DIRECT_URL` has no pooling params
+    3. Manually apply migration via SQL client
+    4. Run `npx prisma db pull` to sync schema
+  </Accordion>
+
+  <Accordion title="Frontend Build Fails" icon="code">
+    **Symptoms**: Vercel/Netlify build errors
+    
+    **Solutions**:
+    - Check Node version is 18+
+    - Verify all dependencies are in `package.json`
+    - Clear build cache and retry
+    - Check for TypeScript errors locally first
+  </Accordion>
+
+  <Accordion title="Slow API Responses" icon="clock">
+    **Symptoms**: Pages take > 5 seconds to load
+    
+    **Solutions**:
+    - Check database connection pool size
+    - Increase `connection_limit` if needed
+    - Check for N+1 query problems
+    - Add indexes to frequently queried fields
+    - Monitor CockroachDB dashboard for slow queries
+  </Accordion>
+</AccordionGroup>
+
+## Deployment Checklist
+
+Use this checklist for each deployment:
+
+### Pre-Deployment
+- [ ] Feature freeze on deployment branch
+- [ ] All tests pass locally
+- [ ] Database backup created
+- [ ] Migration plan reviewed
+- [ ] Environment variables updated
+- [ ] Team notified of deployment window
+
+### During Deployment
+- [ ] Maintenance mode enabled
+- [ ] Database migration applied
+- [ ] Backend deployed and health check passes
+- [ ] Frontend deployed and loads correctly
+- [ ] Post-deployment tests pass
+
+### Post-Deployment
+- [ ] Maintenance mode disabled
+- [ ] Users notified deployment complete
+- [ ] Monitoring alerts configured
+- [ ] Deployment documented in changelog
+- [ ] Team debriefed on any issues
+
+## Performance Optimization
+
+### Connection Pooling
+
+For optimal performance with 50-100 users:
+
+```env
+DATABASE_URL="...?connection_limit=25&pool_timeout=20"
+```
+
+### Caching
+
+Consider implementing:
+- Redis for session storage
+- CDN for static assets
+- API response caching for reports
+
+### Database Indexing
+
+The schema includes optimized indexes. Monitor slow queries in CockroachDB dashboard and add indexes as needed.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="User Guide" icon="book" href="/user-guide/getting-started">
+    Help users get started with the system
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/auth/overview">
+    API documentation for developers
+  </Card>
+</CardGroup>

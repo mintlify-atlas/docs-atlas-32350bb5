@@ -1,0 +1,338 @@
+---
+title: 'Create Repayment'
+description: 'Record a new loan repayment and automatically allocate it to schedule items'
+---
+
+## Endpoint
+
+```
+POST /api/repayments
+```
+
+Record a new repayment for a loan. The payment is automatically allocated to pending repayment schedule items in order of due date. This endpoint handles partial payments, excess payments, and automatically updates the loan status.
+
+## Authentication
+
+Requires authentication with `Bearer` token. All staff roles (Admin, Supervisor, Credit Officer) can create repayments.
+
+## Request Body
+
+<ParamField body="loanId" type="string" required>
+  ID of the loan this repayment is for. The loan must be in APPROVED, ACTIVE, or DEFAULTED status.
+</ParamField>
+
+<ParamField body="amount" type="number" required>
+  Payment amount received. Must be a positive number.
+</ParamField>
+
+<ParamField body="method" type="string" required>
+  Payment method used. Options:
+  - `CASH` - Cash payment
+  - `TRANSFER` - Bank transfer
+  - `POS` - Point of sale terminal
+  - `MOBILE` - Mobile money (e.g., M-Pesa)
+  - `USSD` - USSD payment
+  - `OTHER` - Other payment methods
+</ParamField>
+
+<ParamField body="paidAt" type="string">
+  Date and time when payment was made (ISO 8601 format). If not provided, defaults to current timestamp.
+</ParamField>
+
+<ParamField body="reference" type="string">
+  Optional payment reference number or transaction ID (e.g., bank reference, receipt number)
+</ParamField>
+
+<ParamField body="notes" type="string">
+  Optional notes about the payment (e.g., "Payment received at branch office", "Partial payment - borrower will pay balance next week")
+</ParamField>
+
+<ParamField body="scheduleItemId" type="string">
+  Optional: Target a specific repayment schedule item for payment allocation. If provided, this schedule item will be prioritized when allocating the payment. Useful for making payments on specific overdue installments.
+</ParamField>
+
+## Automatic Payment Processing
+
+When you create a repayment, the system automatically:
+
+1. **Validates the Loan**: Checks that the loan exists and is in a valid status (APPROVED, ACTIVE, or DEFAULTED)
+2. **Creates the Repayment Record**: Records the payment with all details
+3. **Allocates Payment to Schedule Items**: 
+   - If `scheduleItemId` is provided, prioritizes that schedule item
+   - Otherwise, allocates to pending schedule items in order of due date (oldest first)
+   - Handles partial payments by marking items as `PARTIAL`
+   - Applies excess payments to subsequent schedule items
+4. **Recalculates Schedule**: Updates all schedule items with new paid amounts and statuses
+5. **Updates Loan Status**: Automatically transitions loan status:
+   - `APPROVED` → `ACTIVE` (first payment received)
+   - `ACTIVE` → `COMPLETED` (loan fully paid)
+   - `DEFAULTED` → `ACTIVE` (payment received on overdue loan)
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the repayment was recorded successfully
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Response message (e.g., "Repayment recorded successfully")
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  The created repayment object
+  
+  <ResponseField name="id" type="string">
+    Unique identifier for the repayment record
+  </ResponseField>
+  
+  <ResponseField name="loanId" type="string">
+    ID of the loan this repayment is for
+  </ResponseField>
+  
+  <ResponseField name="amount" type="number">
+    Payment amount received
+  </ResponseField>
+  
+  <ResponseField name="currencyCode" type="string" default="NGN">
+    Currency code for the payment
+  </ResponseField>
+  
+  <ResponseField name="paidAt" type="string">
+    Date and time when payment was made (ISO 8601)
+  </ResponseField>
+  
+  <ResponseField name="method" type="string">
+    Payment method used (CASH, TRANSFER, POS, MOBILE, USSD, OTHER)
+  </ResponseField>
+  
+  <ResponseField name="reference" type="string">
+    Payment reference number or transaction ID
+  </ResponseField>
+  
+  <ResponseField name="notes" type="string">
+    Notes about the payment
+  </ResponseField>
+  
+  <ResponseField name="receivedByUserId" type="string">
+    ID of the user who recorded this repayment (from authentication token)
+  </ResponseField>
+  
+  <ResponseField name="loan" type="object">
+    Loan details with borrower information
+    
+    <ResponseField name="id" type="string">
+      Loan ID
+    </ResponseField>
+    
+    <ResponseField name="loanNumber" type="string">
+      Unique loan number
+    </ResponseField>
+    
+    <ResponseField name="principalAmount" type="number">
+      Original loan amount
+    </ResponseField>
+    
+    <ResponseField name="status" type="string">
+      Current loan status (APPROVED, ACTIVE, COMPLETED, DEFAULTED)
+    </ResponseField>
+    
+    <ResponseField name="unionMember" type="object">
+      Union member (borrower) details
+      
+      <ResponseField name="id" type="string">
+        Member ID
+      </ResponseField>
+      
+      <ResponseField name="firstName" type="string">
+        Member's first name
+      </ResponseField>
+      
+      <ResponseField name="lastName" type="string">
+        Member's last name
+      </ResponseField>
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="receivedBy" type="object">
+    Officer who recorded the repayment
+    
+    <ResponseField name="id" type="string">
+      User ID
+    </ResponseField>
+    
+    <ResponseField name="email" type="string">
+      User email
+    </ResponseField>
+    
+    <ResponseField name="role" type="string">
+      User role (ADMIN, SUPERVISOR, CREDIT_OFFICER)
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="createdAt" type="string">
+    Timestamp when repayment record was created
+  </ResponseField>
+  
+  <ResponseField name="updatedAt" type="string">
+    Timestamp when repayment record was last updated
+  </ResponseField>
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X POST 'https://api.example.com/api/repayments' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "loanId": "ln456def",
+    "amount": 5000,
+    "method": "CASH",
+    "reference": "RCP-2024-001",
+    "notes": "Payment received at branch office"
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "message": "Repayment recorded successfully",
+  "data": {
+    "id": "cm123abc",
+    "loanId": "ln456def",
+    "amount": 5000,
+    "currencyCode": "NGN",
+    "paidAt": "2024-01-15T10:30:00.000Z",
+    "method": "CASH",
+    "reference": "RCP-2024-001",
+    "notes": "Payment received at branch office",
+    "receivedByUserId": "usr789ghi",
+    "loan": {
+      "id": "ln456def",
+      "loanNumber": "LN-2024-0123",
+      "principalAmount": 50000,
+      "status": "ACTIVE",
+      "unionMember": {
+        "id": "mem001",
+        "firstName": "John",
+        "lastName": "Doe"
+      }
+    },
+    "receivedBy": {
+      "id": "usr789ghi",
+      "email": "officer@example.com",
+      "role": "CREDIT_OFFICER"
+    },
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T10:30:00.000Z"
+  }
+}
+```
+
+## Partial Payment Example
+
+If a borrower pays less than the full installment amount:
+
+```json
+{
+  "loanId": "ln456def",
+  "amount": 2000,
+  "method": "CASH",
+  "notes": "Partial payment - borrower will pay balance next week"
+}
+```
+
+The system will:
+1. Apply ₦2,000 to the oldest pending schedule item
+2. Mark that schedule item as `PARTIAL`
+3. Track the remaining balance (₦3,000 if the installment was ₦5,000)
+4. The next payment will complete this item before moving to the next
+
+## Excess Payment Example
+
+If a borrower pays more than one installment:
+
+```json
+{
+  "loanId": "ln456def",
+  "amount": 15000,
+  "method": "BANK_TRANSFER",
+  "reference": "TXN-987654321",
+  "notes": "Payment for multiple installments"
+}
+```
+
+The system will:
+1. Apply ₦5,000 to installment 1 (mark as `PAID`)
+2. Apply ₦5,000 to installment 2 (mark as `PAID`)
+3. Apply ₦5,000 to installment 3 (mark as `PAID`)
+4. Create allocation records showing the distribution
+
+## Targeting Specific Schedule Items
+
+To pay a specific overdue installment (e.g., installment 3):
+
+```json
+{
+  "loanId": "ln456def",
+  "amount": 5000,
+  "method": "CASH",
+  "scheduleItemId": "sch003",
+  "notes": "Payment for installment 3 specifically"
+}
+```
+
+The system will prioritize that schedule item when allocating the payment.
+
+## Error Responses
+
+<ResponseField name="400" type="object">
+  Bad request - validation errors
+  ```json
+  {
+    "success": false,
+    "message": "Amount must be positive"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="401" type="object">
+  Unauthorized - missing or invalid authentication token
+  ```json
+  {
+    "success": false,
+    "message": "Authentication required"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="404" type="object">
+  Not found - loan does not exist
+  ```json
+  {
+    "success": false,
+    "message": "Loan not found"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="422" type="object">
+  Unprocessable entity - loan in invalid status
+  ```json
+  {
+    "success": false,
+    "message": "Can only make payments on active, approved, or defaulted loans"
+  }
+  ```
+</ResponseField>
+
+## Audit Trail
+
+All repayment creation actions are automatically logged to the audit trail with:
+- Action: `REPAYMENT_CREATED`
+- Entity: `Repayment`
+- Actor: Authenticated user who created the repayment
+- Timestamp: When the repayment was recorded
+- Metadata: Repayment details including amount, method, and loan information

@@ -1,0 +1,376 @@
+---
+title: 'Update Repayment'
+description: 'Update an existing repayment record'
+---
+
+## Endpoint
+
+```
+PUT /api/repayments/:id
+```
+
+Update an existing repayment record. This endpoint allows modifying payment details such as method, reference, and notes. Changing the payment amount requires Admin privileges and triggers automatic recalculation of payment allocations.
+
+## Authentication
+
+Requires authentication with `Bearer` token.
+
+## Access Control
+
+- **Admin**: Can update any repayment, including amount changes
+- **Supervisor**: Can update repayments in their unions (except amount changes), within 24 hours of creation
+- **Credit Officer**: Cannot update repayments
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique identifier of the repayment to update
+</ParamField>
+
+## Request Body
+
+<ParamField body="amount" type="number">
+  New payment amount. **Admin only**. Changing the amount will:
+  1. Reverse the original allocations
+  2. Delete existing allocation records
+  3. Reallocate the new amount to schedule items
+  4. Recalculate the remaining schedule
+  5. Update the loan status if needed
+</ParamField>
+
+<ParamField body="method" type="string">
+  Update the payment method. Options:
+  - `CASH` - Cash payment
+  - `TRANSFER` - Bank transfer
+  - `POS` - Point of sale terminal
+  - `MOBILE` - Mobile money (e.g., M-Pesa)
+  - `USSD` - USSD payment
+  - `OTHER` - Other payment methods
+</ParamField>
+
+<ParamField body="reference" type="string">
+  Update the payment reference number or transaction ID
+</ParamField>
+
+<ParamField body="notes" type="string">
+  Update notes about the payment
+</ParamField>
+
+## Time Restrictions
+
+<Warning>
+  For non-Admin users, repayments can only be updated within **24 hours** of creation. After 24 hours, only Admins can make updates.
+</Warning>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the update was successful
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Response message (e.g., "Repayment updated successfully")
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  The updated repayment object
+  
+  <ResponseField name="id" type="string">
+    Unique identifier for the repayment record
+  </ResponseField>
+  
+  <ResponseField name="loanId" type="string">
+    ID of the loan this repayment is for
+  </ResponseField>
+  
+  <ResponseField name="amount" type="number">
+    Updated payment amount
+  </ResponseField>
+  
+  <ResponseField name="currencyCode" type="string" default="NGN">
+    Currency code for the payment
+  </ResponseField>
+  
+  <ResponseField name="paidAt" type="string">
+    Date and time when payment was made (ISO 8601)
+  </ResponseField>
+  
+  <ResponseField name="method" type="string">
+    Updated payment method (CASH, TRANSFER, POS, MOBILE, USSD, OTHER)
+  </ResponseField>
+  
+  <ResponseField name="reference" type="string">
+    Updated payment reference number or transaction ID
+  </ResponseField>
+  
+  <ResponseField name="notes" type="string">
+    Updated notes about the payment
+  </ResponseField>
+  
+  <ResponseField name="receivedByUserId" type="string">
+    ID of the user who originally recorded this repayment (unchanged)
+  </ResponseField>
+  
+  <ResponseField name="loan" type="object">
+    Loan details with borrower information
+    
+    <ResponseField name="id" type="string">
+      Loan ID
+    </ResponseField>
+    
+    <ResponseField name="loanNumber" type="string">
+      Unique loan number
+    </ResponseField>
+    
+    <ResponseField name="principalAmount" type="number">
+      Original loan amount
+    </ResponseField>
+    
+    <ResponseField name="status" type="string">
+      Current loan status (may have changed if amount was updated)
+    </ResponseField>
+    
+    <ResponseField name="unionMember" type="object">
+      Union member (borrower) details
+      
+      <ResponseField name="id" type="string">
+        Member ID
+      </ResponseField>
+      
+      <ResponseField name="firstName" type="string">
+        Member's first name
+      </ResponseField>
+      
+      <ResponseField name="lastName" type="string">
+        Member's last name
+      </ResponseField>
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="receivedBy" type="object">
+    Officer who originally recorded the repayment
+    
+    <ResponseField name="id" type="string">
+      User ID
+    </ResponseField>
+    
+    <ResponseField name="email" type="string">
+      User email
+    </ResponseField>
+    
+    <ResponseField name="role" type="string">
+      User role (ADMIN, SUPERVISOR, CREDIT_OFFICER)
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="createdAt" type="string">
+    Timestamp when repayment record was originally created (unchanged)
+  </ResponseField>
+  
+  <ResponseField name="updatedAt" type="string">
+    Timestamp when repayment record was last updated
+  </ResponseField>
+</ResponseField>
+
+## Example Request - Update Method and Reference
+
+```bash
+curl -X PUT 'https://api.example.com/api/repayments/cm123abc' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "method": "TRANSFER",
+    "reference": "TXN-987654321",
+    "notes": "Updated: Payment was via bank transfer, not cash"
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "message": "Repayment updated successfully",
+  "data": {
+    "id": "cm123abc",
+    "loanId": "ln456def",
+    "amount": 5000,
+    "currencyCode": "NGN",
+    "paidAt": "2024-01-15T10:30:00.000Z",
+    "method": "TRANSFER",
+    "reference": "TXN-987654321",
+    "notes": "Updated: Payment was via bank transfer, not cash",
+    "receivedByUserId": "usr789ghi",
+    "loan": {
+      "id": "ln456def",
+      "loanNumber": "LN-2024-0123",
+      "principalAmount": 50000,
+      "status": "ACTIVE",
+      "unionMember": {
+        "id": "mem001",
+        "firstName": "John",
+        "lastName": "Doe"
+      }
+    },
+    "receivedBy": {
+      "id": "usr789ghi",
+      "email": "officer@example.com",
+      "role": "CREDIT_OFFICER"
+    },
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T14:45:00.000Z"
+  }
+}
+```
+
+## Example Request - Update Amount (Admin Only)
+
+```bash
+curl -X PUT 'https://api.example.com/api/repayments/cm123abc' \
+  -H 'Authorization: Bearer ADMIN_TOKEN' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "amount": 4500,
+    "notes": "Corrected: Amount was ₦4,500 not ₦5,000"
+  }'
+```
+
+<Warning>
+  When updating the amount, the system will:
+  1. Reverse all existing allocations to schedule items
+  2. Delete the old allocation records
+  3. Create new allocations with the corrected amount
+  4. Recalculate all remaining schedule items
+  5. Update the loan status if the change affects completion status
+</Warning>
+
+## Amount Update Process
+
+When an Admin changes the repayment amount:
+
+### Step 1: Reverse Original Allocations
+The system finds all allocations for this repayment and reverses them:
+- Updates schedule items by subtracting the allocated amounts from `paidAmount`
+- Recalculates schedule item statuses (PAID → PARTIAL or PENDING)
+- Clears `closedAt` timestamps
+
+### Step 2: Delete Old Allocations
+All `RepaymentAllocation` records for this repayment are deleted.
+
+### Step 3: Reallocate with New Amount
+The new amount is allocated to schedule items following the same rules as creating a new repayment:
+- Sequential allocation by due date (oldest first)
+- Handles partial and excess payments
+- Creates new allocation records
+
+### Step 4: Recalculate Schedule
+All remaining schedule items are recalculated to ensure consistency.
+
+### Step 5: Update Loan Status
+If the amount change affects the total amount repaid, the loan status may transition:
+- If loan becomes fully paid → `COMPLETED`
+- If loan was completed but now has balance → `ACTIVE`
+
+## Common Use Cases
+
+### Correcting Payment Method
+If a payment was recorded with the wrong method:
+```json
+{
+  "method": "MOBILE",
+  "notes": "Correction: Payment was via mobile money"
+}
+```
+
+### Adding Transaction Reference
+If the reference was initially missing:
+```json
+{
+  "reference": "REF-2024-001234"
+}
+```
+
+### Correcting Amount (Admin)
+If the payment amount was recorded incorrectly:
+```json
+{
+  "amount": 4750,
+  "notes": "Corrected amount after verification with borrower"
+}
+```
+
+## Error Responses
+
+<ResponseField name="400" type="object">
+  Bad request - validation errors
+  ```json
+  {
+    "success": false,
+    "message": "Repayment ID is required"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="401" type="object">
+  Unauthorized - missing or invalid authentication token
+  ```json
+  {
+    "success": false,
+    "message": "Authentication required"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="403" type="object">
+  Forbidden - insufficient permissions
+  ```json
+  {
+    "success": false,
+    "message": "Only Administrators can modify the repayment amount"
+  }
+  ```
+  
+  Or for time restrictions:
+  ```json
+  {
+    "success": false,
+    "message": "Cannot update repayment after 24 hours"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="404" type="object">
+  Not found - repayment does not exist
+  ```json
+  {
+    "success": false,
+    "message": "Repayment not found"
+  }
+  ```
+</ResponseField>
+
+## Permission Summary
+
+| Field | Credit Officer | Supervisor | Admin |
+|-------|----------------|------------|-------|
+| method | ❌ Cannot update | ✅ Within 24h | ✅ Anytime |
+| reference | ❌ Cannot update | ✅ Within 24h | ✅ Anytime |
+| notes | ❌ Cannot update | ✅ Within 24h | ✅ Anytime |
+| amount | ❌ Cannot update | ❌ Cannot update | ✅ Anytime |
+
+## Audit Trail
+
+All repayment update actions are automatically logged to the audit trail with:
+- Action: `REPAYMENT_UPDATED`
+- Entity: `Repayment`
+- Actor: Authenticated user who updated the repayment
+- Before: Original repayment data
+- After: Updated repayment data
+- Timestamp: When the update was performed
+
+## Best Practices
+
+1. **Update promptly**: If you notice an error, update the repayment within 24 hours to avoid needing Admin intervention
+2. **Add notes**: Always include notes explaining why the update was made for audit purposes
+3. **Verify before updating**: Double-check the new values before updating, especially for amount changes
+4. **Amount changes**: Only use amount updates for genuine errors - don't use this to reverse payments (use delete endpoint instead)

@@ -1,0 +1,832 @@
+---
+title: "Repayments"
+description: "Record payments, track schedules, and manage loan repayment allocations"
+icon: "money-bill-wave"
+---
+
+## Overview
+
+The Repayments system handles all aspects of loan payment processing, from recording individual payments to tracking schedule compliance and managing partial payments. Every payment is automatically allocated against the borrower's repayment schedule.
+
+<Info>
+  Repayments are automatically allocated to schedule items, paying interest first, then principal, following industry best practices.
+</Info>
+
+## Repayment Data Model
+
+From the Prisma schema:
+
+```prisma
+model Repayment {
+  id     String @id @default(cuid())
+  loanId String
+  loan   Loan
+  
+  receivedByUserId String
+  receivedBy       User    // Staff who recorded payment
+  
+  amount       Decimal           @db.Decimal(14, 2)
+  currencyCode String            @default("NGN")
+  paidAt       DateTime          // When payment was made
+  method       RepaymentMethod
+  reference    String?           // Transaction reference
+  notes        String?
+  
+  allocations RepaymentAllocation[]  // How payment was distributed
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+enum RepaymentMethod {
+  CASH      // Cash payment
+  TRANSFER  // Bank transfer
+  POS       // Point of Sale terminal
+  MOBILE    // Mobile money (e.g., M-Pesa)
+  USSD      // USSD code payment
+  OTHER     // Other methods
+}
+```
+
+### Payment Allocation Model
+
+```prisma
+model RepaymentAllocation {
+  id String @id
+  
+  repaymentId    String
+  repayment      Repayment
+  
+  scheduleItemId String
+  scheduleItem   RepaymentScheduleItem
+  
+  amount    Decimal  @db.Decimal(14, 2)
+  createdAt DateTime @default(now())
+}
+```
+
+<Note>
+  Each repayment can be split across multiple schedule items. The system tracks exactly how much of each payment went to which installment.
+</Note>
+
+## Recording a New Repayment
+
+### Method 1: From Repayments Page
+
+<Steps>
+  <Step title="Navigate">
+    Go to **Business Management** → **Repayments**
+  </Step>
+  
+  <Step title="Add Payment">
+    Click **+ Add Repayment** button
+  </Step>
+  
+  <Step title="Select Loan">
+    Search and select the loan receiving payment
+  </Step>
+  
+  <Step title="Enter Details">
+    **Required Fields:**
+    - **Amount** - Payment amount in Naira
+    - **Payment Date** - When payment was made
+    - **Payment Method** - How payment was received
+    
+    **Optional Fields:**
+    - **Reference Number** - Transaction ID, check number, etc.
+    - **Notes** - Any additional information
+  </Step>
+  
+  <Step title="Record">
+    Click **Record Repayment** to save
+    
+    System automatically:
+    - Allocates payment to schedule items
+    - Updates loan balance
+    - Marks schedule items as paid/partial
+    - Calculates remaining balance
+  </Step>
+</Steps>
+
+### Method 2: From Loan Detail Page
+
+<Steps>
+  <Step title="Open Loan">
+    Navigate to the specific loan's detail page
+  </Step>
+  
+  <Step title="Add Payment">
+    Click **Add Repayment** button in the loan details
+  </Step>
+  
+  <Step title="Enter Payment Info">
+    Loan is pre-selected, fill in payment details
+  </Step>
+  
+  <Step title="Save">
+    Click **Record Repayment**
+  </Step>
+</Steps>
+
+### Method 3: From Repayment Schedules
+
+<Steps>
+  <Step title="Navigate to Schedules">
+    Go to **Business Management** → **Repayment Schedules**
+  </Step>
+  
+  <Step title="Find Due Payment">
+    Locate the schedule item you're collecting
+  </Step>
+  
+  <Step title="Quick Payment">
+    Click **Pay Due** for exact amount payment
+    
+    OR
+    
+    Click **Custom** for partial or different amount
+  </Step>
+  
+  <Step title="Confirm">
+    Enter payment method and reference, then save
+  </Step>
+</Steps>
+
+## Payment Methods
+
+<CardGroup cols={3}>
+  <Card title="CASH" icon="money-bill">
+    Physical cash payment collected in person
+  </Card>
+  
+  <Card title="TRANSFER" icon="exchange-alt">
+    Bank transfer or electronic funds transfer
+  </Card>
+  
+  <Card title="POS" icon="credit-card">
+    Card payment via Point of Sale terminal
+  </Card>
+  
+  <Card title="MOBILE" icon="mobile">
+    Mobile money transfer (M-Pesa, etc.)
+  </Card>
+  
+  <Card title="USSD" icon="phone">
+    Payment via USSD banking code
+  </Card>
+  
+  <Card title="OTHER" icon="ellipsis-h">
+    Any other payment method
+  </Card>
+</CardGroup>
+
+### Best Practices by Method
+
+<Accordion title="CASH Payments">
+  - Count cash carefully before recording
+  - Issue receipt immediately
+  - Store securely until banking
+  - Record exact denominations in notes if large amount
+</Accordion>
+
+<Accordion title="TRANSFER Payments">
+  - Always get transaction reference number
+  - Verify transfer in bank account
+  - Match amount exactly
+  - Record sender name in notes
+</Accordion>
+
+<Accordion title="POS/Card Payments">
+  - Ensure transaction approved before recording
+  - Save POS receipt
+  - Record approval code as reference
+  - Give customer their receipt copy
+</Accordion>
+
+<Accordion title="MOBILE Money">
+  - Get confirmation SMS/code
+  - Verify money received in mobile wallet
+  - Record transaction ID
+  - Note mobile number used
+</Accordion>
+
+## Payment Allocation Logic
+
+The system automatically allocates payments using this priority:
+
+<Steps>
+  <Step title="Find Overdue">
+    Identify all overdue schedule items (past due date, unpaid)
+  </Step>
+  
+  <Step title="Sort by Date">
+    Sort overdue items by due date (oldest first)
+  </Step>
+  
+  <Step title="Allocate to Interest">
+    Apply payment to interest portion first
+  </Step>
+  
+  <Step title="Allocate to Principal">
+    Apply remaining amount to principal
+  </Step>
+  
+  <Step title="Move to Next Item">
+    If schedule item fully paid, move to next overdue item
+  </Step>
+  
+  <Step title="Handle Excess">
+    If payment exceeds all overdue amounts, apply to next due installment
+  </Step>
+</Steps>
+
+### Example Allocation
+
+<Accordion title="Payment Allocation Example">
+  **Scenario:**
+  - Schedule Item 1: ₦10,000 due (Jan 1) - ₦5,000 paid, ₦5,000 outstanding
+  - Schedule Item 2: ₦10,000 due (Feb 1) - ₦0 paid, ₦10,000 outstanding
+  - Payment received: ₦12,000
+  
+  **Allocation:**
+  1. ₦5,000 → Schedule Item 1 (completes it, status: PAID)
+  2. ₦7,000 → Schedule Item 2 (partial, status: PARTIAL)
+  3. Remaining on Item 2: ₦3,000
+  
+  **Result:**
+  - Item 1: Closed (closedAt set)
+  - Item 2: Partially paid
+  - Loan outstanding reduced by ₦12,000
+</Accordion>
+
+### API Endpoint
+
+```typescript
+// POST /api/repayments
+const createRepayment = async (data: {
+  loanId: string;
+  amount: number;
+  method: 'CASH' | 'TRANSFER' | 'POS' | 'MOBILE' | 'USSD' | 'OTHER';
+  paidAt: Date;
+  reference?: string;
+  notes?: string;
+}) => {
+  // Records payment
+  // Auto-allocates to schedule items
+  // Updates loan balances
+  // Returns repayment with allocations
+}
+```
+
+## Viewing Repayment History
+
+### All Repayments View
+
+<Steps>
+  <Step title="Navigate">
+    Go to **Business Management** → **Repayments**
+  </Step>
+  
+  <Step title="Browse Payments">
+    See complete payment history with filters
+  </Step>
+</Steps>
+
+#### Available Filters
+
+<CardGroup cols={2}>
+  <Card title="Date Range" icon="calendar">
+    Filter payments by payment date range
+  </Card>
+  
+  <Card title="Loan" icon="credit-card">
+    View payments for a specific loan
+  </Card>
+  
+  <Card title="Payment Method" icon="filter">
+    Filter by CASH, TRANSFER, POS, etc.
+  </Card>
+  
+  <Card title="Received By" icon="user">
+    See payments recorded by specific staff member
+  </Card>
+</CardGroup>
+
+### Repayment List Columns
+
+- **Date** - When payment was made
+- **Loan Number** - Associated loan
+- **Borrower** - Member who paid
+- **Amount** - Payment amount in Naira
+- **Method** - How payment was received
+- **Reference** - Transaction reference
+- **Received By** - Staff who recorded it
+- **Actions** - View details, edit, delete
+
+### For a Specific Loan
+
+<Steps>
+  <Step title="Open Loan Details">
+    Navigate to the loan
+  </Step>
+  
+  <Step title="Payment History Tab">
+    Click **Payment History** tab
+  </Step>
+  
+  <Step title="View Payments">
+    See all payments for this loan with allocation details
+  </Step>
+</Steps>
+
+## Repayment Schedules Management
+
+The **Repayment Schedules** page provides powerful tracking:
+
+<Info>
+  This is your daily operations hub for managing collections across all loans
+</Info>
+
+### Access Schedules
+
+<Steps>
+  <Step title="Navigate">
+    Go to **Business Management** → **Repayment Schedules**
+  </Step>
+  
+  <Step title="View Dashboard">
+    See summary cards and detailed schedule list
+  </Step>
+</Steps>
+
+### Summary Cards
+
+<CardGroup cols={2}>
+  <Card title="Total Schedules" icon="list">
+    Total number of payment schedules matching filters
+  </Card>
+  
+  <Card title="Pending Payments" icon="clock">
+    Count of unpaid, non-overdue installments
+  </Card>
+  
+  <Card title="Overdue" icon="exclamation-triangle">
+    Number of payments past their due date
+  </Card>
+  
+  <Card title="Total Amount Due" icon="money-bill-wave">
+    Sum of all pending and overdue amounts (in Naira)
+  </Card>
+</CardGroup>
+
+<Note>
+  Summary cards update automatically based on your active filters
+</Note>
+
+### Advanced Filtering
+
+<Accordion title="Search by Borrower">
+  Type borrower name to filter schedules
+</Accordion>
+
+<Accordion title="Filter by Union">
+  Select a union from searchable dropdown to view its schedules
+</Accordion>
+
+<Accordion title="Filter by Union Member">
+  Select specific member to see their payment schedule
+</Accordion>
+
+<Accordion title="Filter by Credit Officer">
+  View schedules for loans managed by specific officer
+</Accordion>
+
+<Accordion title="Filter by Status">
+  - **PENDING** - Not yet paid, not overdue
+  - **PAID** - Fully paid
+  - **PARTIAL** - Partially paid
+  - **OVERDUE** - Past due date and unpaid
+</Accordion>
+
+<Accordion title="Date Range Filter">
+  Three modes:
+  - **Today Only** - Payments due today
+  - **Single Date** - Pick one specific date
+  - **Date Range** - Select start and end dates
+</Accordion>
+
+<Accordion title="Amount Range">
+  Filter by minimum and maximum due amount
+</Accordion>
+
+### Schedule List Features
+
+<CardGroup cols={2}>
+  <Card title="Sorting" icon="arrow-down-wide-short">
+    Click column headers to sort by:
+    - Due date
+    - Borrower name
+    - Amount due
+    - Status
+    - Union
+  </Card>
+  
+  <Card title="Pagination" icon="list-ol">
+    - Adjustable rows per page (10, 20, 50, 100)
+    - Next/Previous navigation
+    - Jump to specific page
+  </Card>
+  
+  <Card title="Quick Actions" icon="bolt">
+    - **Pay Due** - Record exact scheduled amount
+    - **Custom** - Record partial or different amount
+    - **View Loan** - Open full loan details
+  </Card>
+  
+  <Card title="Visual Indicators" icon="palette">
+    Color-coded status badges:
+    - 🟡 Yellow - Pending
+    - 🟢 Green - Paid
+    - 🔵 Blue - Partial
+    - 🔴 Red - Overdue
+  </Card>
+</CardGroup>
+
+## Handling Different Payment Scenarios
+
+### Exact Payment (On Schedule)
+
+<Accordion title="Member pays exact installment amount on time">
+  **Action:**
+  1. Record payment with exact schedule amount
+  2. System marks schedule item as PAID
+  3. Sets `closedAt` timestamp
+  4. Moves to next installment
+  
+  **Best Practice:** Use "Pay Due" button for quick entry
+</Accordion>
+
+### Partial Payment
+
+<Accordion title="Member pays less than scheduled amount">
+  **What Happens:**
+  1. Record actual amount paid
+  2. System marks schedule item as PARTIAL
+  3. Tracks `paidAmount` vs `totalDue`
+  4. Shortfall carries to next collection
+  5. Interest continues to apply
+  
+  **Example:**
+  - Due: ₦10,000
+  - Paid: ₦7,000
+  - Remaining: ₦3,000
+  - Status: PARTIAL
+  
+  **Next Steps:**
+  - Follow up with borrower
+  - Document reason in notes
+  - Track cumulative shortfall
+</Accordion>
+
+### Overpayment
+
+<Accordion title="Member pays more than current installment">
+  **Allocation Logic:**
+  1. Full amount applied to current schedule item (closes it)
+  2. Excess applied to next overdue item (if any)
+  3. Remaining excess applied to next future installment
+  4. Loan completes early if total paid
+  
+  **Example:**
+  - Due this month: ₦10,000
+  - Paid: ₦15,000
+  - Allocation:
+    - ₦10,000 → Current item (PAID)
+    - ₦5,000 → Next item (PARTIAL or PAID)
+  
+  **Benefit:** Reduces total interest, accelerates loan completion
+</Accordion>
+
+### Late Payment
+
+<Accordion title="Payment received after due date">
+  **Status Flow:**
+  1. Schedule item marked OVERDUE when due date passes
+  2. Penalty fees may apply (based on loan settings)
+  3. When paid, item changes to PAID
+  4. Late payment is noted in history
+  
+  **Actions:**
+  - Calculate any penalty fees
+  - Add penalty to payment if applicable
+  - Document late reason
+  - Follow up on future payments
+</Accordion>
+
+### Multiple Payments in One Day
+
+<Accordion title="Borrower makes several payments same day">
+  **Handling:**
+  - Record each payment separately
+  - System allocates them in order recorded
+  - Each creates separate allocation records
+  - All show same `paidAt` date
+  
+  **Best Practice:** Combine into one payment when possible for cleaner records
+</Accordion>
+
+## Editing Repayments
+
+<Warning>
+  Only **Administrators** and **Supervisors** can edit or delete repayments. Credit Officers have read-only access to payment history.
+</Warning>
+
+<Steps>
+  <Step title="Locate Payment">
+    Find the repayment in the list
+  </Step>
+  
+  <Step title="Open Editor">
+    Click the **Edit** icon
+  </Step>
+  
+  <Step title="Modify Fields">
+    Can change:
+    - Payment date
+    - Amount (recalculates allocations)
+    - Payment method
+    - Reference number
+    - Notes
+    
+    Cannot change:
+    - Associated loan
+    - Received by user
+  </Step>
+  
+  <Step title="Save Changes">
+    Click **Save** - system re-allocates payment
+  </Step>
+</Steps>
+
+<Note>
+  Editing a payment amount triggers re-allocation across schedule items
+</Note>
+
+## Deleting Repayments
+
+<Warning>
+  **Use with extreme caution.** Deleting a repayment:
+  - Removes allocation records
+  - Reopens schedule items
+  - Increases loan outstanding balance
+  - Cannot be undone
+</Warning>
+
+<Steps>
+  <Step title="Find Payment">
+    Locate the repayment to delete
+  </Step>
+  
+  <Step title="Delete Action">
+    Click **Delete** icon (trash can)
+  </Step>
+  
+  <Step title="Confirm">
+    Review the warning message
+  </Step>
+  
+  <Step title="Verify Impact">
+    System shows impact on loan and schedule
+  </Step>
+  
+  <Step title="Confirm Deletion">
+    Click **Confirm Delete**
+  </Step>
+</Steps>
+
+<Info>
+  Repayments are **soft deleted** (marked with `deletedAt`) for audit purposes
+</Info>
+
+## Repayment Summary and Reports
+
+### Summary Endpoint
+
+```typescript
+// GET /api/repayments/summary?loanId=xxx&dateFrom=2024-01-01&dateTo=2024-12-31
+const getRepaymentSummary = async (filters: {
+  loanId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}) => {
+  return {
+    totalRepayments: number;    // Count of payments
+    totalAmount: number;         // Sum of amounts
+    averageAmount: number;       // Average payment size
+    byMethod: {                  // Breakdown by method
+      CASH: number;
+      TRANSFER: number;
+      // etc.
+    };
+    byMonth: Array<{             // Monthly trends
+      month: string;
+      count: number;
+      amount: number;
+    }>;
+  };
+}
+```
+
+### Collections by Union
+
+Track collection performance by union:
+
+```typescript
+// GET /api/repayments/collections-by-union
+const getCollectionsByUnion = async (filters: {
+  dateFrom?: string;
+  dateTo?: string;
+  unionId?: string;
+  creditOfficerId?: string;
+}) => {
+  // Returns union-level collection data
+}
+```
+
+<Accordion title="Collections Report Shows">
+  - Union name
+  - Number of active loans
+  - Total collected
+  - Collection rate percentage
+  - Overdue amount
+  - Credit officer name
+</Accordion>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Recording Payments" icon="check-circle">
+    - Record payments on the day received
+    - Double-check amounts before saving
+    - Always get transaction references
+    - Issue receipts to borrowers
+    - Add notes for unusual circumstances
+  </Card>
+  
+  <Card title="Payment Methods" icon="wallet">
+    - Use correct payment method
+    - For TRANSFER, wait for bank confirmation
+    - For CASH, count in front of borrower
+    - Keep POS receipts for 90 days
+    - Verify MOBILE money before recording
+  </Card>
+  
+  <Card title="Schedule Monitoring" icon="calendar-check">
+    - Check schedules daily
+    - Follow up on overdue items promptly
+    - Use "Today Only" filter each morning
+    - Contact borrowers before due dates
+    - Track patterns in late payments
+  </Card>
+  
+  <Card title="Data Accuracy" icon="shield-check">
+    - Verify loan before recording
+    - Confirm amount with borrower
+    - Save reference numbers
+    - Don't delete repayments unnecessarily
+    - Keep audit trail clear
+  </Card>
+</CardGroup>
+
+### Daily Workflow
+
+<Steps>
+  <Step title="Morning Check">
+    1. Filter schedules by "Today Only"
+    2. Review all payments due today
+    3. Note borrowers to contact
+  </Step>
+  
+  <Step title="During the Day">
+    1. Record payments as received
+    2. Issue receipts immediately
+    3. Follow up on missed payments
+  </Step>
+  
+  <Step title="End of Day">
+    1. Reconcile cash collected
+    2. Verify all payments recorded
+    3. Check overdue list
+    4. Prepare next day's contacts
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Cannot record repayment">
+    **Check:**
+    - Loan exists and is ACTIVE
+    - Amount is positive and reasonable
+    - Payment date is valid
+    - You have necessary permissions
+    - Loan isn't already completed
+  </Accordion>
+  
+  <Accordion title="Payment allocated incorrectly">
+    **Reason:** System follows interest-first allocation
+    
+    **Solution:**
+    - This is intentional behavior
+    - Contact administrator if business rules need adjustment
+    - Document in notes if different allocation expected
+  </Accordion>
+  
+  <Accordion title="Cannot edit payment">
+    **Possible reasons:**
+    - You lack permission (Credit Officer role)
+    - Loan is completed or closed
+    - Payment is part of completed loan
+    
+    **Solution:** Contact Supervisor or Administrator
+  </Accordion>
+  
+  <Accordion title="Schedule item still showing overdue after payment">
+    **Check:**
+    - Payment was properly allocated
+    - Amount paid was sufficient
+    - Status updated (may need page refresh)
+    - System processed allocation
+    
+    **Solution:** Refresh page or contact support
+  </Accordion>
+  
+  <Accordion title="Missing repayments in history">
+    **Verify:**
+    - Date range filter includes the dates
+    - Loan filter is correct
+    - Repayments weren't deleted
+    - You have permission to view them
+  </Accordion>
+</AccordionGroup>
+
+## API Reference
+
+```typescript
+// Get all repayments
+GET /api/repayments?page=1&limit=20&loanId=xxx&method=CASH&dateFrom=2024-01-01&dateTo=2024-12-31
+
+// Get repayment by ID
+GET /api/repayments/:id
+
+// Create repayment
+POST /api/repayments
+Body: {
+  loanId: string;
+  amount: number;
+  method: 'CASH' | 'TRANSFER' | 'POS' | 'MOBILE' | 'USSD' | 'OTHER';
+  paidAt: Date;
+  reference?: string;
+  notes?: string;
+}
+
+// Update repayment
+PUT /api/repayments/:id
+Body: { amount?, method?, paidAt?, reference?, notes? }
+
+// Delete repayment (soft)
+DELETE /api/repayments/:id
+
+// Get repayment schedules
+GET /api/repayments/schedules?page=1&limit=20&status=OVERDUE&unionId=xxx&dateFrom=2024-01-01
+
+// Get schedule by loan
+GET /api/repayments/schedules/loan/:loanId
+
+// Get repayment summary
+GET /api/repayments/summary?loanId=xxx&dateFrom=2024-01-01&dateTo=2024-12-31
+
+// Get collections by union
+GET /api/repayments/collections-by-union?dateFrom=2024-01-01&dateTo=2024-12-31&unionId=xxx
+```
+
+## Summary
+
+Repayment Management provides:
+- ✅ Multiple payment recording methods
+- ✅ 6 payment method types (CASH, TRANSFER, POS, MOBILE, USSD, OTHER)
+- ✅ Automatic payment allocation
+- ✅ Schedule tracking with 4 statuses (PENDING, PARTIAL, PAID, OVERDUE)
+- ✅ Partial and overpayment handling
+- ✅ Advanced filtering and search
+- ✅ Real-time summary cards
+- ✅ Collections reporting by union
+- ✅ Transaction reference tracking
+- ✅ Audit trail preservation
+
+<Card title="Next Steps" icon="arrow-right">
+  - Monitor [Dashboard](/features/dashboard) for collection metrics
+  - Generate [Reports](/features/reporting) for portfolio analysis
+  - Review [Loans](/features/loans) for payment performance
+</Card>

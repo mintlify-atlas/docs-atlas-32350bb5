@@ -1,0 +1,131 @@
+---
+title: "Login"
+api: "POST /api/auth/login"
+description: "Authenticate with email and password to receive access tokens"
+---
+
+Authenticates a user with email and password credentials. Returns JWT access and refresh tokens along with user information.
+
+## Request
+
+<ParamField body="email" type="string" required>
+  User's email address. Email is case-insensitive and will be normalized to lowercase.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  User's password. Minimum 1 character required.
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Response message (e.g., "Login successful")
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  <Expandable title="data properties">
+    <ResponseField name="user" type="object">
+      <Expandable title="user properties">
+        <ResponseField name="id" type="string">
+          User's unique identifier (UUID)
+        </ResponseField>
+        <ResponseField name="email" type="string">
+          User's email address
+        </ResponseField>
+        <ResponseField name="role" type="string">
+          User's role (e.g., ADMIN, CREDIT_OFFICER)
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="accessToken" type="string">
+      JWT access token for API authentication (valid for 7 days)
+    </ResponseField>
+    <ResponseField name="refreshToken" type="string">
+      JWT refresh token for obtaining new access tokens
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X POST https://api.millenniumpotters.com/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "SecurePass123"
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "user": {
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "email": "user@example.com",
+      "role": "ADMIN"
+    },
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+}
+```
+
+## Error Responses
+
+<AccordionGroup>
+  <Accordion title="401 - Invalid Credentials">
+    Returned when email doesn't exist or password is incorrect.
+    ```json
+    {
+      "success": false,
+      "message": "Invalid credentials"
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="401 - Account Inactive">
+    Returned when the user account has been deactivated.
+    ```json
+    {
+      "success": false,
+      "message": "Account is inactive"
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="400 - Validation Error">
+    Returned when email or password is missing or invalid.
+    ```json
+    {
+      "success": false,
+      "message": "Invalid email address"
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Session Management
+
+Successful login creates a new session with the following characteristics:
+
+- Sessions are limited to 3 active sessions per user
+- When the limit is reached, the oldest session is automatically revoked
+- Each session is tracked with IP address and user agent
+- Sessions expire after 7 days
+- Login attempts (successful and failed) are logged for security auditing
+
+## Implementation Details
+
+- Email addresses are normalized to lowercase before authentication
+- Passwords are validated against bcrypt hashes
+- Failed login attempts are tracked in the user activity log
+- Soft-deleted users cannot log in

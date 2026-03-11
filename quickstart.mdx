@@ -1,80 +1,409 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get Millenium Potters running locally in under 10 minutes
 ---
 
-## Get started in three steps
+# Quick Start Guide
 
-Get your documentation site running locally and make your first customization.
+This guide will help you set up Millenium Potters on your local machine for development or evaluation purposes.
 
-### Step 1: Set up your local environment
+## Prerequisites
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
+Before you begin, ensure you have the following installed:
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Node.js 18+" icon="node-js">
+    Download from [nodejs.org](https://nodejs.org)
+  </Card>
+  <Card title="PostgreSQL 18" icon="database">
+    Required for local development database
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+<Warning>
+  Production deployments use CockroachDB for enhanced scalability and automatic backups. This guide focuses on local development with PostgreSQL.
+</Warning>
+
+## Installation Steps
+
+<Steps>
+  <Step title="Clone the Repository">
+    First, clone the Millenium Potters repository to your local machine:
+
+    ```bash
+    git clone <repository-url>
+    cd Millenium
+    ```
+
+    The project structure includes:
+    ```
+    Millenium/
+    ├── frontend/           # Next.js 14 application
+    ├── backend/            # Node.js/Express API server
+    └── USER_GUIDE.md       # End-user documentation
+    ```
+  </Step>
+
+  <Step title="Install Dependencies">
+    Install dependencies for both frontend and backend:
+
+    <CodeGroup>
+    ```bash Frontend
+    cd frontend
+    npm install
+    ```
+
+    ```bash Backend
+    cd backend
+    npm install
+    ```
+    </CodeGroup>
+
+    <Info>
+      The backend includes Prisma ORM for database management and Supabase for authentication. The frontend uses Next.js 14 with Tailwind CSS and Aceternity UI components.
+    </Info>
+
+    See: `~/workspace/source/frontend/package.json` and `~/workspace/source/backend/package.json`
+  </Step>
+
+  <Step title="Configure Environment Variables">
+    Create environment files for local development.
+
+    ### Backend Configuration
+
+    Create `backend/.env.local`:
+
+    ```env backend/.env.local
+    # Database Configuration
+    DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@localhost:5432/millenium_local?schema=public"
+    DIRECT_URL="postgresql://postgres:YOUR_PASSWORD@localhost:5432/millenium_local?schema=public"
+    
+    # Server Configuration
+    PORT=5000
+    NODE_ENV=development
+    
+    # JWT Configuration
+    JWT_SECRET="your-secret-key-here-change-in-production"
+    JWT_EXPIRES_IN="7d"
+    
+    # Supabase Authentication
+    SUPABASE_URL="your-supabase-url"
+    SUPABASE_ANON_KEY="your-supabase-anon-key"
+    
+    # Cloudinary Storage (Optional for local dev)
+    CLOUDINARY_CLOUD_NAME="your-cloud-name"
+    CLOUDINARY_API_KEY="your-api-key"
+    CLOUDINARY_API_SECRET="your-api-secret"
+    
+    # Email Configuration (Optional)
+    SMTP_HOST="mail.yourdomain.com"
+    SMTP_PORT=587
+    SMTP_USER="your-email@domain.com"
+    SMTP_PASS="your-email-password"
+    ```
+
+    ### Frontend Configuration
+
+    Create `frontend/.env.local`:
+
+    ```env frontend/.env.local
+    # API Configuration
+    NEXT_PUBLIC_API_URL=http://localhost:5000/api
+    
+    # Supabase Configuration
+    NEXT_PUBLIC_SUPABASE_URL="your-supabase-url"
+    NEXT_PUBLIC_SUPABASE_ANON_KEY="your-supabase-anon-key"
+    ```
+
+    <Note>
+      Replace `YOUR_PASSWORD` with your PostgreSQL password. For Supabase credentials, create a free account at [supabase.com](https://supabase.com).
+    </Note>
+
+    <Tip>
+      You can skip Cloudinary configuration for local development. Document uploads will still work but files won't persist in cloud storage.
+    </Tip>
+  </Step>
+
+  <Step title="Set Up the Database">
+    Initialize the database schema using Prisma:
+
+    ```bash
+    cd backend
+    
+    # Generate Prisma Client
+    npx prisma generate
+    
+    # Push schema to database
+    npx prisma db push
+    ```
+
+    <Info>
+      This creates all necessary tables including Users, Unions, UnionMembers, Loans, Repayments, and more. See the complete schema at `~/workspace/source/backend/prisma/schema.prisma`.
+    </Info>
+
+    ### Optional: Seed Sample Data
+
+    To populate the database with sample data for testing:
+
+    ```bash
+    npm run seed
+    ```
+
+    This creates:
+    - Sample users (admin, supervisor, credit officers)
+    - Test unions and members
+    - Example loans with repayment schedules
+
+    ### Database Management Tools
+
+    Open Prisma Studio to view and edit your data:
+
+    ```bash
+    npx prisma studio
+    ```
+
+    Access the UI at: http://localhost:5555
+  </Step>
+
+  <Step title="Start the Development Servers">
+    Run both the backend API and frontend application:
+
+    <CodeGroup>
+    ```bash Backend (Terminal 1)
+    cd backend
+    npm run dev:local
+    ```
+
+    ```bash Frontend (Terminal 2)
+    cd frontend
+    npm run dev
+    ```
+    </CodeGroup>
+
+    <Note>
+      The `dev:local` script uses the `.env.local` file for configuration. For production, use `npm run dev` which reads from `.env`.
+    </Note>
+
+    ### Access the Application
+
+    Once both servers are running:
+
+    <CardGroup cols={3}>
+      <Card title="Frontend" icon="window">
+        http://localhost:3000
+      </Card>
+      <Card title="Backend API" icon="server">
+        http://localhost:5000/api
+      </Card>
+      <Card title="Health Check" icon="heart-pulse">
+        http://localhost:5000/health
+      </Card>
+    </CardGroup>
+  </Step>
+
+  <Step title="Log In and Explore">
+    Open your browser to http://localhost:3000 and log in.
+
+    ### Default Credentials
+
+    If you ran the seed script, use these default accounts:
+
+    | Role | Email | Password |
+    |------|-------|----------|
+    | Admin | admin@millenium.com | admin123 |
+    | Supervisor | supervisor@millenium.com | super123 |
+    | Credit Officer | officer@millenium.com | officer123 |
+
+    <Warning>
+      Change these passwords immediately in production environments!
+    </Warning>
+
+    ### Take the Interactive Tour
+
+    After logging in:
+    1. The Command Center Tour will start automatically
+    2. Or click your profile icon → "Take Tour" to start it manually
+    3. Learn about dashboard features, navigation, and quick actions
+
+    See: `~/workspace/source/frontend/package.json:62` (Shepherd.js integration)
+  </Step>
+</Steps>
+
+## Verify Your Installation
+
+<AccordionGroup>
+  <Accordion title="Check Backend Health">
+    Test the backend API is running:
+
+    ```bash
+    curl http://localhost:5000/health
+    ```
+
+    Expected response:
+    ```json
+    {
+      "status": "ok",
+      "database": "connected",
+      "timestamp": "2026-03-11T12:00:00.000Z"
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Check Database Connection">
+    Verify Prisma can connect to PostgreSQL:
+
+    ```bash
+    cd backend
+    npx prisma db pull
+    ```
+
+    You should see: "✓ Introspection complete"
+  </Accordion>
+
+  <Accordion title="Test Authentication">
+    Try logging in through the frontend UI or test the login endpoint:
+
+    ```bash
+    curl -X POST http://localhost:5000/api/auth/login \
+      -H "Content-Type: application/json" \
+      -d '{
+        "email": "admin@millenium.com",
+        "password": "admin123"
+      }'
+    ```
+
+    You should receive a JWT token in the response.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+Now that you have Millenium Potters running locally, explore these features:
+
+<CardGroup cols={2}>
+  <Card title="Create a Union" icon="users">
+    Go to Business Management → Unions → Add Union
+  </Card>
+  <Card title="Register Members" icon="user-plus">
+    Add members to your union with full profile details
+  </Card>
+  <Card title="Process a Loan" icon="money-bill">
+    Create a loan application and walk through the approval workflow
+  </Card>
+  <Card title="Record Repayments" icon="coins">
+    Record payments and see the repayment schedule update automatically
+  </Card>
+</CardGroup>
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Database Connection Error">
+    **Error:** `Can't reach database server at localhost:5432`
+
+    **Solution:**
+    - Ensure PostgreSQL is running: `sudo systemctl status postgresql`
+    - Check the port number in your DATABASE_URL
+    - Verify your PostgreSQL password is correct
+  </Accordion>
+
+  <Accordion title="Port Already in Use">
+    **Error:** `Port 5000 is already in use`
+
+    **Solution:**
+    - Change the PORT in `backend/.env.local` to a different value (e.g., 5001)
+    - Update `NEXT_PUBLIC_API_URL` in `frontend/.env.local` to match
+    - Or kill the process using port 5000: `lsof -ti:5000 | xargs kill`
+  </Accordion>
+
+  <Accordion title="Prisma Client Not Generated">
+    **Error:** `@prisma/client did not initialize yet`
+
+    **Solution:**
+    ```bash
+    cd backend
+    npx prisma generate
+    ```
+  </Accordion>
+
+  <Accordion title="Frontend Build Errors">
+    **Error:** Module not found errors
+
+    **Solution:**
+    ```bash
+    cd frontend
+    rm -rf node_modules package-lock.json
+    npm install
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Development Scripts
+
+Useful commands for development:
+
+### Backend Scripts
+
+```bash
+# Development with local database
+npm run dev:local
+
+# Development with production database
+npm run dev
+
+# Build for production
+npm run build
+
+# Start production server
+npm run start
+
+# Database management
+npm run prisma:generate    # Generate Prisma Client
+npm run prisma:push        # Push schema changes
+npm run prisma:migrate     # Run migrations
+npm run prisma:studio      # Open Prisma Studio
+
+# Seed database
+npm run seed
+```
+
+See: `~/workspace/source/backend/package.json:6-20`
+
+### Frontend Scripts
+
+```bash
+# Development with Turbopack (faster)
+npm run dev
+
+# Build for production with Turbopack
+npm run build
+
+# Start production server
+npm run start
+
+# Run linter
+npm run lint
+```
+
+See: `~/workspace/source/frontend/package.json:5-10`
+
+## What's Next?
+
+<CardGroup cols={2}>
+  <Card title="Architecture Overview" icon="diagram-project" href="/architecture">
+    Learn about the system architecture and technology stack
+  </Card>
+  <Card title="User Guide" icon="book-open" href="/guides/user-management">
+    Complete guide for using all features of the platform
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/auth/overview">
+    Explore REST API endpoints for integration
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/deployment/prerequisites">
+    Deploy to production with CockroachDB and Vercel
+  </Card>
+</CardGroup>
+
+<Tip>
+  Join the interactive tour after logging in to learn about all the dashboard features and navigation options!
+</Tip>
