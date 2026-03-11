@@ -1,0 +1,228 @@
+---
+title: "Loan Types"
+api: "GET /api/loan-types"
+---
+
+Manage loan type configurations that define loan products available in the system.
+
+## List Loan Types
+
+### GET /api/loan-types
+
+Retrieve all available loan types.
+
+#### Authentication
+
+Required. All authenticated staff can view loan types.
+
+#### Response
+
+<ResponseField name="loanTypes" type="array">
+  <Expandable title="Loan Type object">
+    <ResponseField name="id" type="string">
+      Unique loan type identifier
+    </ResponseField>
+    
+    <ResponseField name="name" type="string">
+      Loan type name (e.g., "Personal Loan", "Business Loan")
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Detailed description of the loan type
+    </ResponseField>
+    
+    <ResponseField name="minAmount" type="number">
+      Minimum loan amount allowed
+    </ResponseField>
+    
+    <ResponseField name="maxAmount" type="number">
+      Maximum loan amount allowed
+    </ResponseField>
+    
+    <ResponseField name="defaultInterestRate" type="number">
+      Default annual interest rate (percentage)
+    </ResponseField>
+    
+    <ResponseField name="minTerm" type="number">
+      Minimum loan term
+    </ResponseField>
+    
+    <ResponseField name="maxTerm" type="number">
+      Maximum loan term
+    </ResponseField>
+    
+    <ResponseField name="termUnit" type="string">
+      Term unit: DAY, WEEK, or MONTH
+    </ResponseField>
+    
+    <ResponseField name="isActive" type="boolean">
+      Whether this loan type is currently available
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO timestamp of creation
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+#### Example Request
+
+```bash cURL
+curl -X GET "https://api.millenium-potters.com/api/loan-types" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+#### Example Response
+
+```json
+{
+  "loanTypes": [
+    {
+      "id": "clt123abc",
+      "name": "Personal Loan",
+      "description": "Short-term personal loans for individual needs",
+      "minAmount": 10000,
+      "maxAmount": 500000,
+      "defaultInterestRate": 15.0,
+      "minTerm": 1,
+      "maxTerm": 12,
+      "termUnit": "MONTH",
+      "isActive": true,
+      "createdAt": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "clt456def",
+      "name": "Business Loan",
+      "description": "Loans for small business operations",
+      "minAmount": 50000,
+      "maxAmount": 2000000,
+      "defaultInterestRate": 18.0,
+      "minTerm": 3,
+      "maxTerm": 24,
+      "termUnit": "MONTH",
+      "isActive": true,
+      "createdAt": "2026-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+## Create Loan Type
+
+### POST /api/loan-types
+
+Create a new loan type configuration.
+
+#### Authentication
+
+Required. Only Admin role can create loan types.
+
+#### Request Body
+
+<ParamField body="name" type="string" required>
+  Loan type name
+</ParamField>
+
+<ParamField body="description" type="string">
+  Loan type description
+</ParamField>
+
+<ParamField body="minAmount" type="number" required>
+  Minimum loan amount
+</ParamField>
+
+<ParamField body="maxAmount" type="number" required>
+  Maximum loan amount
+</ParamField>
+
+<ParamField body="defaultInterestRate" type="number" required>
+  Default annual interest rate (percentage)
+</ParamField>
+
+<ParamField body="minTerm" type="number" required>
+  Minimum loan term
+</ParamField>
+
+<ParamField body="maxTerm" type="number" required>
+  Maximum loan term
+</ParamField>
+
+<ParamField body="termUnit" type="string" required>
+  Term unit: DAY, WEEK, or MONTH
+</ParamField>
+
+#### Example Request
+
+```bash cURL
+curl -X POST "https://api.millenium-potters.com/api/loan-types" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Emergency Loan",
+    "description": "Quick loans for urgent needs",
+    "minAmount": 5000,
+    "maxAmount": 100000,
+    "defaultInterestRate": 20.0,
+    "minTerm": 1,
+    "maxTerm": 6,
+    "termUnit": "MONTH"
+  }'
+```
+
+## Update Loan Type
+
+### PUT /api/loan-types/:id
+
+Update an existing loan type configuration.
+
+#### Authentication
+
+Required. Only Admin role can update loan types.
+
+#### Request Body
+
+All fields are optional. Only provided fields will be updated.
+
+## Toggle Loan Type Status
+
+### PUT /api/loan-types/:id/toggle-status
+
+Activate or deactivate a loan type.
+
+#### Authentication
+
+Required. Only Admin role can toggle loan type status.
+
+#### Response
+
+```json
+{
+  "id": "clt123abc",
+  "isActive": false,
+  "message": "Loan type status updated successfully"
+}
+```
+
+<Warning>
+Deactivating a loan type prevents new loans from being created with this type. Existing loans are not affected.
+</Warning>
+
+## Delete Loan Type
+
+### DELETE /api/loan-types/:id
+
+Delete a loan type. This operation will fail if there are active loans using this type.
+
+#### Authentication
+
+Required. Only Admin role can delete loan types.
+
+<Info>
+Loan types with active loans cannot be deleted. Deactivate them instead to prevent new loans while preserving historical data.
+</Info>
+
+## See Also
+
+- [Create Loan](/api/loans/create) - Uses loan type for validation
+- [Loan Processing Guide](/guides/loan-processing)
+- [Admin Role Documentation](/roles/admin)

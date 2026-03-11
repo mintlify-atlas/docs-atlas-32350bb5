@@ -1,0 +1,201 @@
+---
+title: "Backup Operations"
+api: "POST /api/backup"
+---
+
+Manage database backups and exports.
+
+## Create Backup
+
+### POST /api/backup/create
+
+Create a new backup of the database and upload it to Cloudinary.
+
+#### Authentication
+
+Required. Only Admin role can create backups.
+
+#### Request Body
+
+<ParamField body="description" type="string">
+  Optional description for the backup
+</ParamField>
+
+<ParamField body="includeDocuments" type="boolean" default="true">
+  Whether to include uploaded documents in the backup
+</ParamField>
+
+#### Response
+
+<ResponseField name="backupId" type="string">
+  Unique backup identifier
+</ResponseField>
+
+<ResponseField name="filename" type="string">
+  Backup file name
+</ResponseField>
+
+<ResponseField name="size" type="number">
+  Backup file size in bytes
+</ResponseField>
+
+<ResponseField name="cloudinaryUrl" type="string">
+  URL to backup file on Cloudinary
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO timestamp of backup creation
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Backup description
+</ResponseField>
+
+#### Example Request
+
+```bash cURL
+curl -X POST "https://api.millenium-potters.com/api/backup/create" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "Pre-deployment backup",
+    "includeDocuments": true
+  }'
+```
+
+#### Example Response
+
+```json
+{
+  "backupId": "backup_2026-03-11T12-00-00-000Z",
+  "filename": "backup_2026-03-11T12-00-00-000Z.json",
+  "size": 15728640,
+  "cloudinaryUrl": "https://res.cloudinary.com/millenium/backups/backup_2026-03-11.json",
+  "createdAt": "2026-03-11T12:00:00Z",
+  "description": "Pre-deployment backup"
+}
+```
+
+<Info>
+Backup creation may take several minutes depending on database size. The operation runs asynchronously.
+</Info>
+
+## List Backups
+
+### GET /api/backup/list
+
+Retrieve a list of all available backups.
+
+#### Authentication
+
+Required. Only Admin role can list backups.
+
+#### Response
+
+```json
+{
+  "backups": [
+    {
+      "backupId": "backup_2026-03-11T12-00-00-000Z",
+      "filename": "backup_2026-03-11T12-00-00-000Z.json",
+      "size": 15728640,
+      "cloudinaryUrl": "https://res.cloudinary.com/millenium/...",
+      "createdAt": "2026-03-11T12:00:00Z",
+      "description": "Pre-deployment backup"
+    }
+  ],
+  "total": 15,
+  "cloudinaryStats": {
+    "totalSize": 235929600,
+    "count": 15
+  }
+}
+```
+
+## Download Backup
+
+### GET /api/backup/download/:backupId
+
+Download a specific backup file.
+
+#### Authentication
+
+Required. Only Admin role can download backups.
+
+#### Path Parameters
+
+<ParamField path="backupId" type="string" required>
+  Backup identifier
+</ParamField>
+
+#### Response
+
+Returns the backup file as a downloadable JSON file.
+
+## Delete Backup
+
+### DELETE /api/backup/:backupId
+
+Delete a backup from Cloudinary.
+
+#### Authentication
+
+Required. Only Admin role can delete backups.
+
+<Warning>
+Deleting a backup is permanent and cannot be undone. Ensure you have other backup copies before deleting.
+</Warning>
+
+## Restore from Backup
+
+<Note>
+Backup restoration is a critical operation that should only be performed during maintenance mode. See the [Backups Guide](/deployment/backups) for detailed restoration procedures.
+</Note>
+
+Restoration is typically done manually:
+
+1. Enable maintenance mode
+2. Download the backup file
+3. Use Prisma to restore the database
+4. Verify data integrity
+5. Disable maintenance mode
+
+## Automatic Backups
+
+The system uses CockroachDB's built-in backup features:
+
+- **Hourly backups** automatically created
+- **30-day retention** period
+- **Point-in-Time Recovery (PITR)** available
+
+The manual backup API is for additional application-level backups stored in Cloudinary.
+
+## Error Responses
+
+<AccordionGroup>
+  <Accordion title="401 Unauthorized">
+    Missing or invalid authentication token.
+  </Accordion>
+  
+  <Accordion title="403 Forbidden">
+    User does not have Admin permissions for backup operations.
+  </Accordion>
+  
+  <Accordion title="500 Internal Server Error">
+    Backup creation or upload failed. Common causes:
+    - Cloudinary storage quota exceeded
+    - Database connection issues
+    - Insufficient disk space
+  </Accordion>
+  
+  <Accordion title="404 Not Found">
+    Specified backup ID does not exist.
+  </Accordion>
+</AccordionGroup>
+
+## See Also
+
+- [Backups Guide](/deployment/backups)
+- [Maintenance Mode](/deployment/maintenance-mode)
+- [Production Deployment](/deployment/production)
+- [Admin Role Documentation](/roles/admin)

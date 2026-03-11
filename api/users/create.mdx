@@ -1,0 +1,129 @@
+---
+title: "Create User"
+api: "POST /api/users"
+---
+
+Create a new system user. Admin and Supervisor roles can create users.
+
+## Authentication
+
+Required. Only Admin and Supervisor roles can create users.
+
+## Request Body
+
+<ParamField body="email" type="string" required>
+  User's email address (must be unique)
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  User's password (minimum 8 characters)
+</ParamField>
+
+<ParamField body="role" type="string" required>
+  User role: ADMIN, SUPERVISOR, or CREDIT_OFFICER
+</ParamField>
+
+<ParamField body="firstName" type="string" required>
+  User's first name
+</ParamField>
+
+<ParamField body="lastName" type="string" required>
+  User's last name
+</ParamField>
+
+<ParamField body="phone" type="string">
+  Contact phone number
+</ParamField>
+
+<ParamField body="address" type="string">
+  Physical address
+</ParamField>
+
+<ParamField body="supervisorId" type="string">
+  Supervisor ID (required when creating CREDIT_OFFICER)
+</ParamField>
+
+## Response
+
+<ResponseField name="id" type="string">
+  Unique user identifier
+</ResponseField>
+
+<ResponseField name="email" type="string">
+  User's email address
+</ResponseField>
+
+<ResponseField name="role" type="string">
+  Assigned role
+</ResponseField>
+
+<ResponseField name="firstName" type="string">
+  User's first name
+</ResponseField>
+
+<ResponseField name="lastName" type="string">
+  User's last name
+</ResponseField>
+
+<ResponseField name="isActive" type="boolean">
+  Account status (true by default)
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO timestamp of creation
+</ResponseField>
+
+## Example Request
+
+```bash cURL
+curl -X POST "https://api.millenium-potters.com/api/users" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "newofficer@millenium.com",
+    "password": "SecurePass123",
+    "role": "CREDIT_OFFICER",
+    "firstName": "Jane",
+    "lastName": "Smith",
+    "phone": "+234-800-1234",
+    "supervisorId": "clx456def"
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "id": "clx789ghi",
+  "email": "newofficer@millenium.com",
+  "role": "CREDIT_OFFICER",
+  "firstName": "Jane",
+  "lastName": "Smith",
+  "isActive": true,
+  "createdAt": "2026-03-11T10:30:00Z"
+}
+```
+
+## Error Responses
+
+<AccordionGroup>
+  <Accordion title="401 Unauthorized">
+    Missing or invalid authentication token.
+  </Accordion>
+  
+  <Accordion title="403 Forbidden">
+    User does not have permission to create users.
+  </Accordion>
+  
+  <Accordion title="400 Bad Request">
+    Invalid request body. Common issues:
+    - Email already exists
+    - Password too short
+    - Invalid role value
+    - Missing supervisorId for Credit Officer
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+Credit Officers must be assigned to a Supervisor. The supervisorId field is required when creating a user with CREDIT_OFFICER role.
+</Note>

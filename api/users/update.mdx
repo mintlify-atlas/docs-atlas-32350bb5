@@ -1,0 +1,153 @@
+---
+title: "Update User"
+api: "PUT /api/users/:id"
+---
+
+Update an existing user's profile and settings.
+
+## Authentication
+
+Required. Users can update their own profile. Admins can update any user.
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  User ID to update
+</ParamField>
+
+## Request Body
+
+All fields are optional. Only provided fields will be updated.
+
+<ParamField body="firstName" type="string">
+  User's first name
+</ParamField>
+
+<ParamField body="lastName" type="string">
+  User's last name
+</ParamField>
+
+<ParamField body="phone" type="string">
+  Contact phone number
+</ParamField>
+
+<ParamField body="address" type="string">
+  Physical address
+</ParamField>
+
+<ParamField body="profileImage" type="file">
+  Profile image file (multipart/form-data)
+  
+  Maximum size: 5MB
+  
+  Accepted formats: image/jpeg, image/png, image/gif
+</ParamField>
+
+<ParamField body="role" type="string">
+  User role (Admin only)
+</ParamField>
+
+<ParamField body="isActive" type="boolean">
+  Account active status (Admin only)
+</ParamField>
+
+<ParamField body="supervisorId" type="string">
+  Supervisor ID (Admin only, for Credit Officers)
+</ParamField>
+
+## Response
+
+<ResponseField name="id" type="string">
+  User identifier
+</ResponseField>
+
+<ResponseField name="email" type="string">
+  User's email address
+</ResponseField>
+
+<ResponseField name="role" type="string">
+  User role
+</ResponseField>
+
+<ResponseField name="firstName" type="string">
+  Updated first name
+</ResponseField>
+
+<ResponseField name="lastName" type="string">
+  Updated last name
+</ResponseField>
+
+<ResponseField name="phone" type="string">
+  Updated phone number
+</ResponseField>
+
+<ResponseField name="profileImage" type="string">
+  URL to profile image
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string">
+  ISO timestamp of last update
+</ResponseField>
+
+## Example Request
+
+```bash cURL (JSON)
+curl -X PUT "https://api.millenium-potters.com/api/users/clx789ghi" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "firstName": "Jane",
+    "lastName": "Doe",
+    "phone": "+234-800-5678"
+  }'
+```
+
+```bash cURL (with image)
+curl -X PUT "https://api.millenium-potters.com/api/users/clx789ghi" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "firstName=Jane" \
+  -F "lastName=Doe" \
+  -F "profileImage=@/path/to/image.jpg"
+```
+
+## Example Response
+
+```json
+{
+  "id": "clx789ghi",
+  "email": "newofficer@millenium.com",
+  "role": "CREDIT_OFFICER",
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "phone": "+234-800-5678",
+  "profileImage": "/uploads/profiles/profile-789.jpg",
+  "updatedAt": "2026-03-11T11:00:00Z"
+}
+```
+
+## Error Responses
+
+<AccordionGroup>
+  <Accordion title="401 Unauthorized">
+    Missing or invalid authentication token.
+  </Accordion>
+  
+  <Accordion title="403 Forbidden">
+    User does not have permission to update this profile.
+  </Accordion>
+  
+  <Accordion title="404 Not Found">
+    User with specified ID does not exist.
+  </Accordion>
+  
+  <Accordion title="400 Bad Request">
+    Invalid request. Common issues:
+    - Image file too large (> 5MB)
+    - Invalid image format
+    - Invalid role value
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+Changing a user's role or supervisorId requires Admin permissions. Regular users cannot modify these fields.
+</Warning>

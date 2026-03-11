@@ -122,6 +122,23 @@
               "api/reports/supervisor",
               "api/reports/analytics"
             ]
+          },
+          {
+            "group": "Users",
+            "pages": [
+              "api/users/list",
+              "api/users/create",
+              "api/users/update",
+              "api/users/delete"
+            ]
+          },
+          {
+            "group": "System",
+            "pages": [
+              "api/system/loan-types",
+              "api/system/settings",
+              "api/system/backup"
+            ]
           }
         ]
       },

@@ -1,0 +1,203 @@
+---
+title: "System Settings"
+api: "GET /api/settings"
+---
+
+Manage global system settings and configurations.
+
+## Get Settings
+
+### GET /api/settings
+
+Retrieve current system settings.
+
+#### Authentication
+
+Required. All authenticated users can view settings.
+
+#### Response
+
+<ResponseField name="companySettings" type="object">
+  <Expandable title="Company Settings">
+    <ResponseField name="companyName" type="string">
+      Organization name
+    </ResponseField>
+    
+    <ResponseField name="address" type="string">
+      Company address
+    </ResponseField>
+    
+    <ResponseField name="phone" type="string">
+      Contact phone number
+    </ResponseField>
+    
+    <ResponseField name="email" type="string">
+      Contact email address
+    </ResponseField>
+    
+    <ResponseField name="logo" type="string">
+      URL to company logo
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="maintenanceMode" type="object">
+  <Expandable title="Maintenance Mode Settings">
+    <ResponseField name="enabled" type="boolean">
+      Whether maintenance mode is active
+    </ResponseField>
+    
+    <ResponseField name="message" type="string">
+      Message shown to users during maintenance
+    </ResponseField>
+    
+    <ResponseField name="allowedUsers" type="array">
+      User IDs allowed to access during maintenance
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="loanSettings" type="object">
+  <Expandable title="Loan Settings">
+    <ResponseField name="defaultLateFeePercentage" type="number">
+      Default late payment fee percentage
+    </ResponseField>
+    
+    <ResponseField name="gracePeriodDays" type="number">
+      Days before late fees are applied
+    </ResponseField>
+    
+    <ResponseField name="autoApprovalThreshold" type="number">
+      Maximum amount for auto-approval (if enabled)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+#### Example Request
+
+```bash cURL
+curl -X GET "https://api.millenium-potters.com/api/settings" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+#### Example Response
+
+```json
+{
+  "companySettings": {
+    "companyName": "Millenium Potters Cooperative",
+    "address": "123 Main Street, Lagos, Nigeria",
+    "phone": "+234-800-POTTER",
+    "email": "info@millenium-potters.com",
+    "logo": "/uploads/company/logo.png"
+  },
+  "maintenanceMode": {
+    "enabled": false,
+    "message": "System maintenance in progress. Please try again later.",
+    "allowedUsers": []
+  },
+  "loanSettings": {
+    "defaultLateFeePercentage": 5.0,
+    "gracePeriodDays": 3,
+    "autoApprovalThreshold": 0
+  }
+}
+```
+
+## Update Settings
+
+### PUT /api/settings
+
+Update system settings.
+
+#### Authentication
+
+Required. Only Admin role can update settings.
+
+#### Request Body
+
+<ParamField body="companySettings" type="object">
+  Company information settings
+</ParamField>
+
+<ParamField body="maintenanceMode" type="object">
+  Maintenance mode configuration
+</ParamField>
+
+<ParamField body="loanSettings" type="object">
+  Loan-related settings
+</ParamField>
+
+#### Example Request
+
+```bash cURL
+curl -X PUT "https://api.millenium-potters.com/api/settings" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "companySettings": {
+      "companyName": "Millenium Potters Cooperative Ltd",
+      "phone": "+234-800-NEW-NUMBER"
+    },
+    "loanSettings": {
+      "gracePeriodDays": 5
+    }
+  }'
+```
+
+## Maintenance Mode
+
+### GET /api/settings/maintenance
+
+Check maintenance mode status.
+
+```json
+{
+  "enabled": false,
+  "message": "System maintenance in progress"
+}
+```
+
+### PUT /api/settings/maintenance
+
+Enable or disable maintenance mode.
+
+#### Request Body
+
+<ParamField body="enabled" type="boolean" required>
+  Maintenance mode status
+</ParamField>
+
+<ParamField body="message" type="string">
+  Message to display to users
+</ParamField>
+
+<ParamField body="allowedUsers" type="array">
+  Array of user IDs allowed to access during maintenance
+</ParamField>
+
+<Warning>
+When maintenance mode is enabled, all users except those in the allowedUsers list will be unable to access the system.
+</Warning>
+
+## Error Responses
+
+<AccordionGroup>
+  <Accordion title="401 Unauthorized">
+    Missing or invalid authentication token.
+  </Accordion>
+  
+  <Accordion title="403 Forbidden">
+    User does not have Admin permissions to modify settings.
+  </Accordion>
+  
+  <Accordion title="400 Bad Request">
+    Invalid settings values provided.
+  </Accordion>
+</AccordionGroup>
+
+## See Also
+
+- [Maintenance Mode Guide](/deployment/maintenance-mode)
+- [Admin Role Documentation](/roles/admin)
+- [Production Deployment](/deployment/production)

@@ -1,0 +1,163 @@
+---
+title: "List Users"
+api: "GET /api/users"
+---
+
+Retrieve a paginated list of all system users with optional filtering.
+
+## Authentication
+
+Required. All authenticated users can view the user list.
+
+## Query Parameters
+
+<ParamField query="page" type="number" default="1">
+  Page number for pagination
+</ParamField>
+
+<ParamField query="limit" type="number" default="10">
+  Number of users per page
+</ParamField>
+
+<ParamField query="role" type="string">
+  Filter by role (ADMIN, SUPERVISOR, CREDIT_OFFICER)
+</ParamField>
+
+<ParamField query="isActive" type="boolean">
+  Filter by active status
+</ParamField>
+
+<ParamField query="search" type="string">
+  Search by name or email
+</ParamField>
+
+## Response
+
+<ResponseField name="users" type="array">
+  <Expandable title="User object">
+    <ResponseField name="id" type="string">
+      Unique user identifier
+    </ResponseField>
+    
+    <ResponseField name="email" type="string">
+      User's email address
+    </ResponseField>
+    
+    <ResponseField name="role" type="string">
+      User role: ADMIN, SUPERVISOR, or CREDIT_OFFICER
+    </ResponseField>
+    
+    <ResponseField name="isActive" type="boolean">
+      Whether the user account is active
+    </ResponseField>
+    
+    <ResponseField name="firstName" type="string">
+      User's first name
+    </ResponseField>
+    
+    <ResponseField name="lastName" type="string">
+      User's last name
+    </ResponseField>
+    
+    <ResponseField name="phone" type="string">
+      Contact phone number
+    </ResponseField>
+    
+    <ResponseField name="profileImage" type="string">
+      URL to profile image
+    </ResponseField>
+    
+    <ResponseField name="supervisorId" type="string">
+      ID of supervisor (for Credit Officers)
+    </ResponseField>
+    
+    <ResponseField name="lastLoginAt" type="string">
+      ISO timestamp of last login
+    </ResponseField>
+    
+    <ResponseField name="loginCount" type="number">
+      Total number of logins
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO timestamp of user creation
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="pagination" type="object">
+  <Expandable title="Pagination metadata">
+    <ResponseField name="page" type="number">
+      Current page number
+    </ResponseField>
+    
+    <ResponseField name="limit" type="number">
+      Items per page
+    </ResponseField>
+    
+    <ResponseField name="total" type="number">
+      Total number of users
+    </ResponseField>
+    
+    <ResponseField name="totalPages" type="number">
+      Total number of pages
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Request
+
+```bash cURL
+curl -X GET "https://api.millenium-potters.com/api/users?page=1&limit=10&role=CREDIT_OFFICER" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('/api/users?role=CREDIT_OFFICER', {
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+const data = await response.json();
+```
+
+## Example Response
+
+```json
+{
+  "users": [
+    {
+      "id": "clx123abc",
+      "email": "officer@millenium.com",
+      "role": "CREDIT_OFFICER",
+      "isActive": true,
+      "firstName": "John",
+      "lastName": "Doe",
+      "phone": "+234-800-0000",
+      "profileImage": "/uploads/profiles/profile-123.jpg",
+      "supervisorId": "clx456def",
+      "lastLoginAt": "2026-03-11T10:30:00Z",
+      "loginCount": 45,
+      "createdAt": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 15,
+    "totalPages": 2
+  }
+}
+```
+
+## Error Responses
+
+<AccordionGroup>
+  <Accordion title="401 Unauthorized">
+    Missing or invalid authentication token.
+  </Accordion>
+  
+  <Accordion title="400 Bad Request">
+    Invalid query parameters (e.g., invalid role value).
+  </Accordion>
+</AccordionGroup>

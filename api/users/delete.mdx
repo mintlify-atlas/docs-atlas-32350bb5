@@ -1,0 +1,100 @@
+---
+title: "Delete User"
+api: "DELETE /api/users/:id"
+---
+
+Soft delete a user account. This deactivates the user without removing their data.
+
+## Authentication
+
+Required. Only Admin role can delete users.
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  User ID to delete
+</ParamField>
+
+## Response
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+<ResponseField name="deletedAt" type="string">
+  ISO timestamp of deletion
+</ResponseField>
+
+## Example Request
+
+```bash cURL
+curl -X DELETE "https://api.millenium-potters.com/api/users/clx789ghi" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('/api/users/clx789ghi', {
+  method: 'DELETE',
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+const data = await response.json();
+```
+
+## Example Response
+
+```json
+{
+  "message": "User deleted successfully",
+  "deletedAt": "2026-03-11T12:00:00Z"
+}
+```
+
+## Dependency Checking
+
+Before deleting a user, check their dependencies using:
+
+```
+GET /api/users/:id/dependencies
+```
+
+This returns information about:
+- Unions managed by the user
+- Union members assigned to the user
+- Loans assigned to the user
+- Active sessions
+
+## Error Responses
+
+<AccordionGroup>
+  <Accordion title="401 Unauthorized">
+    Missing or invalid authentication token.
+  </Accordion>
+  
+  <Accordion title="403 Forbidden">
+    User does not have Admin permissions.
+  </Accordion>
+  
+  <Accordion title="404 Not Found">
+    User with specified ID does not exist.
+  </Accordion>
+  
+  <Accordion title="409 Conflict">
+    User has active dependencies (unions, loans, etc.) that prevent deletion.
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+Deleting a user with active unions or loans will fail. Reassign their responsibilities first using the dependency check endpoint.
+</Warning>
+
+<Info>
+This is a soft delete operation. The user record is marked as deleted but not removed from the database. This preserves audit trails and historical data.
+</Info>
+
+## See Also
+
+- [List Users](/api/users/list)
+- [User Management Guide](/guides/user-management)
+- [User Roles Overview](/roles/overview)
