@@ -1,0 +1,172 @@
+{
+  "projectType": "saas",
+  "projectName": "Millenium Potters",
+  "projectDescription": "A comprehensive microfinance loan management platform for tracking unions, members, loans, and repayments.",
+  "theme": "maple",
+  "primaryColor": "#9a8c94",
+  "lightColor": "#3d2a2a",
+  "darkColor": "#c8bab3",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "architecture"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/dashboard",
+              "features/unions",
+              "features/members",
+              "features/loans",
+              "features/repayments",
+              "features/reporting"
+            ]
+          },
+          {
+            "group": "User Roles",
+            "pages": [
+              "roles/overview",
+              "roles/admin",
+              "roles/supervisor",
+              "roles/credit-officer"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/user-management",
+              "guides/loan-processing",
+              "guides/repayment-tracking",
+              "guides/reporting-analytics"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Authentication",
+            "pages": [
+              "api/auth/overview",
+              "api/auth/login",
+              "api/auth/logout",
+              "api/auth/password-reset"
+            ]
+          },
+          {
+            "group": "Unions",
+            "pages": [
+              "api/unions/list",
+              "api/unions/create",
+              "api/unions/update",
+              "api/unions/delete"
+            ]
+          },
+          {
+            "group": "Union Members",
+            "pages": [
+              "api/members/list",
+              "api/members/create",
+              "api/members/update",
+              "api/members/delete"
+            ]
+          },
+          {
+            "group": "Loans",
+            "pages": [
+              "api/loans/list",
+              "api/loans/create",
+              "api/loans/update",
+              "api/loans/approve",
+              "api/loans/status"
+            ]
+          },
+          {
+            "group": "Repayments",
+            "pages": [
+              "api/repayments/list",
+              "api/repayments/create",
+              "api/repayments/update"
+            ]
+          },
+          {
+            "group": "Reports",
+            "pages": [
+              "api/reports/overview",
+              "api/reports/supervisor",
+              "api/reports/analytics"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Deployment",
+        "groups": [
+          {
+            "group": "Setup",
+            "pages": [
+              "deployment/prerequisites",
+              "deployment/environment",
+              "deployment/database",
+              "deployment/production"
+            ]
+          },
+          {
+            "group": "Operations",
+            "pages": [
+              "deployment/maintenance-mode",
+              "deployment/backups",
+              "deployment/monitoring"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Real-time dashboard with analytics and Command Center view",
+    "Union and member management with document uploads",
+    "Complete loan lifecycle management (draft to completion)",
+    "Repayment tracking with multiple payment methods",
+    "Role-based access control (Admin, Supervisor, Credit Officer)",
+    "Supervisor reporting and analytics",
+    "Automated backups to Cloudinary",
+    "Maintenance mode for safe deployments",
+    "Audit logging and activity tracking"
+  ],
+  "publicApiSurface": [
+    "POST /api/auth/login - Authenticate user",
+    "POST /api/auth/logout - End user session",
+    "POST /api/auth/forgot-password - Request password reset",
+    "GET /api/unions - List all unions",
+    "POST /api/unions - Create new union",
+    "PUT /api/unions/:id - Update union",
+    "DELETE /api/unions/:id - Delete union",
+    "GET /api/union-members - List union members",
+    "POST /api/union-members - Create union member",
+    "PUT /api/union-members/:id - Update member",
+    "DELETE /api/union-members/:id - Delete member",
+    "GET /api/loans - List loans",
+    "POST /api/loans - Create loan",
+    "PUT /api/loans/:id - Update loan",
+    "PUT /api/loans/:id/approve - Approve loan",
+    "PUT /api/loans/:id/status - Update loan status",
+    "GET /api/repayments - List repayments",
+    "POST /api/repayments - Create repayment",
+    "PUT /api/repayments/:id - Update repayment",
+    "GET /api/supervisor-reports - Get supervisor reports",
+    "GET /api/settings - Get system settings",
+    "PUT /api/settings - Update system settings",
+    "POST /api/backup - Create backup",
+    "GET /api/health - Health check endpoint"
+  ]
+}
